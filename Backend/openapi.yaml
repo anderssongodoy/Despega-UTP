@@ -1,0 +1,2154 @@
+openapi: 3.0.3
+info:
+  title: Despega UTP API
+  version: 0.1.0
+  description: >
+    Contrato API para el MVP de Despega UTP. Cubre login/session,
+    onboarding de estudiante, dashboard, diagnostico, evidencias, CV,
+    oportunidades, retos, empresa y asesor UTP.
+servers:
+  - url: http://localhost:8000/api
+    description: Local development
+tags:
+  - name: Auth
+  - name: Students
+  - name: Jobs
+  - name: Challenges
+  - name: Companies
+  - name: Advisor
+
+paths:
+  /auth/session:
+    get:
+      tags: [Auth]
+      summary: Obtener sesion actual y destino inicial
+      x-roles: [student, company, advisor]
+      x-pages: [/login, /onboarding, /student/home, /company/dashboard, /advisor/impact]
+      x-ui-usage: El login lo usa para decidir el rol activo, si debe mostrar onboarding y a que pagina redirigir.
+      x-data-sources: [postgres]
+      x-computed-by: auth.service
+      description: Indica rol, proveedor de autenticacion, si requiere onboarding y a que ruta debe redirigir el frontend.
+      responses:
+        "200":
+          description: Sesion actual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+              examples:
+                studentNeedsOnboarding:
+                  summary: Estudiante nuevo
+                  value:
+                    user:
+                      id: stu_camila
+                      name: Camila Torres
+                      email: camila.torres@utp.edu.pe
+                      role: student
+                    authProvider: microsoft
+                    requiresOnboarding: true
+                    redirectTo: /onboarding
+                company:
+                  summary: Empresa
+                  value:
+                    user:
+                      id: usr_recruiter_ana
+                      name: Ana Reclutadora
+                      email: ana@retailandino.pe
+                      role: company
+                    companyId: comp_retail_andino
+                    authProvider: credentials
+                    requiresOnboarding: false
+                    redirectTo: /company/dashboard
+
+  /students/{studentId}/onboarding:
+    post:
+      tags: [Students]
+      summary: Completar onboarding inicial del estudiante
+      x-roles: [student]
+      x-pages: [/onboarding, /student/home]
+      x-ui-usage: El onboarding envia los 4 pasos y recibe evidencia inicial, diagnostico inicial y redirect al dashboard estudiante.
+      x-data-sources: [postgres, json-config, computed-service]
+      x-computed-by: onboarding.service, cv-bullet.service, gap.service
+      description: Guarda perfil academico, meta laboral, evidencia inicial y autoevaluacion.
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingRequest"
+            examples:
+              camila:
+                value:
+                  academicProfile:
+                    career: Ingenieria de Sistemas e Informatica
+                    cycle: 8
+                    campus: Lima Centro
+                    modality: Semipresencial
+                  employmentGoal:
+                    targetRoleId: role_data_intern
+                    targetRoleName: Practicante de Analisis de Datos
+                    availability: Practicas preprofesionales - 30h
+                    preferredWorkMode: Hibrido
+                    applicationTimeframe: En las proximas 2 semanas
+                  initialEvidence:
+                    type: academic_project
+                    title: Dashboard de ventas para curso de BI
+                    context: Proyecto final de curso
+                    actions: Limpie datos en Excel y cree un dashboard en Power BI para analizar ventas.
+                    result: El equipo identifico productos con mayor margen y presento recomendaciones.
+                    skills: [sk_excel, sk_powerbi, sk_communication]
+                  selfAssessment:
+                    knownSkills: [sk_excel, sk_powerbi, sk_communication]
+                    perceivedGaps: [sk_sql, sk_english, sk_interview]
+                    cvStatus: incomplete
+                    linkedinUrl: ""
+      responses:
+        "200":
+          description: Onboarding completado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingResponse"
+              examples:
+                success:
+                  value:
+                    studentId: stu_camila
+                    onboardingCompleted: true
+                    createdEvidence:
+                      id: ev_001
+                      title: Dashboard de ventas para curso de BI
+                      cvBullet: Desarrolle un dashboard de ventas en Power BI a partir de datos limpiados en Excel, identificando productos de mayor margen para apoyar decisiones comerciales.
+                    goal:
+                      roleId: role_data_intern
+                      roleName: Practicante de Analisis de Datos
+                    initialDiagnosis:
+                      readinessScore: 72
+                      status: viable
+                      criticalGaps: [SQL, Ingles, Entrevista]
+                    redirectTo: /student/home
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /students/{studentId}/dashboard:
+    get:
+      tags: [Students]
+      summary: Obtener dashboard del estudiante
+      x-roles: [student]
+      x-pages: [/student/home]
+      x-ui-usage: Alimenta cards de perfil, meta laboral, score, proxima accion, brechas, vacantes, recursos y progreso.
+      x-data-sources: [postgres, json-config, computed-service]
+      x-computed-by: dashboard.service, matching.service, resource-recommendation.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Dashboard del estudiante
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentDashboard"
+              examples:
+                camila:
+                  value:
+                    student:
+                      id: stu_camila
+                      name: Camila Torres
+                      career: Ingenieria de Sistemas e Informatica
+                      cycle: 8
+                      modality: Semipresencial
+                    goal:
+                      roleId: role_data_intern
+                      roleName: Practicante de Analisis de Datos
+                      readinessScore: 72
+                      status: viable
+                    nextBestAction:
+                      title: Completa una evidencia de SQL o dashboard
+                      description: Tu perfil ya tiene base en Power BI, pero la vacante objetivo exige SQL intermedio.
+                      targetPage: /student/profile?tab=evidence
+                    criticalGaps:
+                      - skillName: SQL
+                        severity: partial
+                        message: Te falta 1 nivel para vacantes de datos.
+                      - skillName: Ingles
+                        severity: critical
+                        message: Limita vacantes con empresas regionales.
+                    recommendedJobs:
+                      - jobId: job_data_retail
+                        title: Practicante de Analisis de Datos
+                        companyName: Retail Andino
+                        matchScore: 74
+                        status: viable
+                    recommendedResources:
+                      - resourceId: res_ruta_laboral
+                        name: Ruta Laboral Virtual
+                        reason: Refuerza CV y marca personal antes de postular.
+                    progress:
+                      evidences: 2
+                      challengesCompleted: 0
+                      applications: 2
+                      interviewPractice: 1
+
+  /roles:
+    get:
+      tags: [Students]
+      summary: Listar roles laborales objetivo
+      x-roles: [student]
+      x-pages: [/onboarding, /student/route]
+      x-ui-usage: Llena el selector de meta laboral en onboarding y en Ruta Profesional.
+      x-data-sources: [json-config]
+      x-computed-by: roles-config.service
+      responses:
+        "200":
+          description: Roles disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [roles]
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Role"
+              examples:
+                roles:
+                  value:
+                    roles:
+                      - id: role_data_intern
+                        name: Practicante de Analisis de Datos
+                        family: Tecnologia / Datos
+                        recommendedCycleMin: 7
+                      - id: role_marketing_assistant
+                        name: Asistente de Marketing
+                        family: Marketing / Comunicacion
+                        recommendedCycleMin: 6
+
+  /students/{studentId}/goal:
+    post:
+      tags: [Students]
+      summary: Actualizar meta laboral del estudiante
+      x-roles: [student]
+      x-pages: [/student/route]
+      x-ui-usage: Se usa cuando el estudiante cambia su rol objetivo en Ruta Profesional.
+      x-data-sources: [postgres, json-config]
+      x-computed-by: goals.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roleId]
+              properties:
+                roleId:
+                  type: string
+                  example: role_data_intern
+      responses:
+        "200":
+          description: Meta actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [studentId, roleId, message]
+                properties:
+                  studentId:
+                    type: string
+                  roleId:
+                    type: string
+                  message:
+                    type: string
+              example:
+                studentId: stu_camila
+                roleId: role_data_intern
+                message: Meta laboral actualizada.
+
+  /students/{studentId}/diagnosis:
+    get:
+      tags: [Students]
+      summary: Obtener diagnostico de empleabilidad
+      x-roles: [student]
+      x-pages: [/student/route, /student/home]
+      x-ui-usage: Alimenta tab Diagnostico de Ruta Profesional y puede resumirse en Inicio.
+      x-data-sources: [postgres, json-config, computed-service]
+      x-computed-by: diagnosis.service, gap.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Diagnostico de empleabilidad
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Diagnosis"
+              example:
+                studentId: stu_camila
+                role:
+                  id: role_data_intern
+                  name: Practicante de Analisis de Datos
+                readinessScore: 72
+                dimensions:
+                  - name: CV
+                    score: 60
+                    status: partial
+                  - name: Habilidades tecnicas
+                    score: 68
+                    status: partial
+                  - name: Evidencia
+                    score: 80
+                    status: ready
+                  - name: Entrevista
+                    score: 55
+                    status: partial
+                  - name: Ingles
+                    score: 35
+                    status: critical
+                message: Tu perfil tiene evidencia aplicable, pero necesita reforzar SQL e ingles para ampliar opciones.
+
+  /students/{studentId}/gaps:
+    get:
+      tags: [Students]
+      summary: Obtener brechas contra una vacante
+      x-roles: [student]
+      x-pages: [/student/route, /student/opportunities]
+      x-ui-usage: Alimenta tab Brechas de Ruta Profesional y el detalle de brechas por vacante en Oportunidades.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: gap.service, matching.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+        - in: query
+          name: jobId
+          required: true
+          schema:
+            type: string
+          example: job_data_retail
+      responses:
+        "200":
+          description: Brechas contra vacante
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GapAnalysis"
+              example:
+                studentId: stu_camila
+                jobId: job_data_retail
+                matchScore: 74
+                gaps:
+                  - skillId: sk_sql
+                    skillName: SQL
+                    currentLevel: 2
+                    requiredLevel: 3
+                    severity: partial
+                    recommendedAction: Practica consultas SELECT, JOIN y filtros con una base simple.
+                canApplyToday: true
+                applyAdvice: Puedes postular si ajustas tu CV y explicas tu proyecto de BI como evidencia.
+
+  /students/{studentId}/action-plan:
+    get:
+      tags: [Students]
+      summary: Obtener plan de accion del estudiante
+      x-roles: [student]
+      x-pages: [/student/route, /student/home]
+      x-ui-usage: Alimenta tab Plan 14 dias y la proxima mejor accion del dashboard.
+      x-data-sources: [postgres, json-config, computed-service]
+      x-computed-by: action-plan.service, resource-recommendation.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Plan de accion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionPlan"
+              example:
+                studentId: stu_camila
+                days:
+                  - day: 1
+                    title: Ajustar CV para Analisis de Datos
+                    type: cv
+                    minutes: 45
+                    resourceId: null
+                  - day: 2
+                    title: Completar practica rapida de SQL
+                    type: skill
+                    minutes: 60
+                    resourceId: null
+                  - day: 4
+                    title: Revisar modulo de Ruta Laboral Virtual sobre CV
+                    type: utp_resource
+                    minutes: 45
+                    resourceId: res_ruta_laboral
+
+  /students/{studentId}/evidences:
+    get:
+      tags: [Students]
+      summary: Listar evidencias del estudiante
+      x-roles: [student, company]
+      x-pages: [/student/profile, /company/talent]
+      x-ui-usage: En estudiante muestra Lab de Evidencia; en empresa puede alimentar highlights del candidato.
+      x-data-sources: [postgres]
+      x-computed-by: evidences.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Evidencias del estudiante
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [evidences]
+                properties:
+                  evidences:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Evidence"
+              example:
+                evidences:
+                  - id: ev_001
+                    title: Dashboard de ventas para curso de BI
+                    type: academic_project
+                    skills: [Excel, Power BI, Comunicacion]
+                    cvBullet: Desarrolle un dashboard de ventas en Power BI a partir de datos limpiados en Excel, identificando productos de mayor margen y comunicando recomendaciones al equipo.
+    post:
+      tags: [Students]
+      summary: Crear evidencia del estudiante
+      x-roles: [student]
+      x-pages: [/student/profile, /onboarding, /student/challenges]
+      x-ui-usage: Crea evidencias desde Perfil Profesional, evidencia inicial de onboarding o evidencia generada por retos.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: evidences.service, cv-bullet.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEvidenceRequest"
+            example:
+              title: Atencion al cliente en negocio familiar
+              type: work_experience
+              context: Apoyo fines de semana
+              actions: Atendi clientes, registre pedidos y resolvi reclamos.
+              result: Reduje errores en pedidos repetidos al crear una lista de control.
+              skills: [sk_communication, sk_problem_solving, sk_organization]
+      responses:
+        "201":
+          description: Evidencia creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateEvidenceResponse"
+              example:
+                id: ev_005
+                studentId: stu_camila
+                title: Atencion al cliente en negocio familiar
+                cvBullet: Gestione atencion a clientes y registro de pedidos en negocio familiar, resolviendo reclamos y reduciendo errores mediante una lista de control.
+                starStory: "Situacion: apoyo en negocio familiar. Tarea: reducir errores de pedidos. Accion: registre pedidos y cree lista de control. Resultado: disminuyeron errores repetidos."
+                skillsMapped: [Comunicacion, Resolucion de problemas, Organizacion]
+
+  /evidences/{evidenceId}/generate-cv-bullet:
+    post:
+      tags: [Students]
+      summary: Generar bullet CV desde evidencia
+      x-roles: [student]
+      x-pages: [/student/profile, /student/opportunities]
+      x-ui-usage: Genera o regenera bullets para el tab CV y para el Kit de postulacion.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: cv-bullet.service
+      parameters:
+        - $ref: "#/components/parameters/EvidenceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetRoleId, mode]
+              properties:
+                targetRoleId:
+                  type: string
+                  example: role_data_intern
+                mode:
+                  type: string
+                  enum: [fallback, ai]
+                  example: fallback
+      responses:
+        "200":
+          description: Bullet generado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [evidenceId, cvBullet, tone, source]
+                properties:
+                  evidenceId:
+                    type: string
+                  cvBullet:
+                    type: string
+                  tone:
+                    type: string
+                  source:
+                    type: string
+                    enum: [template, ai]
+              example:
+                evidenceId: ev_001
+                cvBullet: Desarrolle un dashboard de ventas en Power BI a partir de datos limpiados en Excel, identificando productos de mayor margen para apoyar decisiones comerciales.
+                tone: professional
+                source: template
+
+  /students/{studentId}/cv:
+    get:
+      tags: [Students]
+      summary: Obtener CV armado por rol
+      x-roles: [student]
+      x-pages: [/student/profile, /student/opportunities]
+      x-ui-usage: Alimenta tab CV y los bullets recomendados dentro del Kit de postulacion.
+      x-data-sources: [postgres, json-config, computed-service]
+      x-computed-by: cv.service, cv-bullet.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+        - in: query
+          name: roleId
+          required: true
+          schema:
+            type: string
+          example: role_data_intern
+      responses:
+        "200":
+          description: CV recomendado por rol
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentCv"
+              example:
+                studentId: stu_camila
+                targetRole: Practicante de Analisis de Datos
+                summary: Estudiante de Ingenieria de Sistemas con interes en analisis de datos, dashboards y mejora de procesos.
+                bullets:
+                  - evidenceId: ev_001
+                    text: Desarrolle un dashboard de ventas en Power BI a partir de datos limpiados en Excel, identificando productos de mayor margen para apoyar decisiones comerciales.
+                    recommended: true
+                missingSections: [LinkedIn, Ingles, Certificaciones]
+
+  /students/{studentId}/passport:
+    get:
+      tags: [Students]
+      summary: Obtener pasaporte de empleabilidad
+      x-roles: [student, company]
+      x-pages: [/student/profile, /company/talent]
+      x-ui-usage: En estudiante muestra competencias evidenciadas; en empresa puede explicar fortalezas del candidato.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: passport.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Pasaporte de competencias
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Passport"
+              example:
+                studentId: stu_camila
+                competencies:
+                  - name: Tecnologia
+                    level: 3
+                    evidenceCount: 2
+                    evidences: [Dashboard de ventas, Micro-reto de insights]
+                  - name: Comunicacion
+                    level: 3
+                    evidenceCount: 2
+                    evidences: [Presentacion de proyecto, Atencion al cliente]
+
+  /students/{studentId}/interview-kit:
+    get:
+      tags: [Students]
+      summary: Obtener kit de entrevista
+      x-roles: [student]
+      x-pages: [/student/profile, /student/opportunities]
+      x-ui-usage: Alimenta tab Entrevista y preguntas del Kit de postulacion por vacante.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: interview-kit.service, cv-bullet.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+        - in: query
+          name: jobId
+          required: true
+          schema:
+            type: string
+          example: job_data_retail
+      responses:
+        "200":
+          description: Kit de entrevista
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewKit"
+              example:
+                pitch: Soy estudiante de Ingenieria de Sistemas de 8vo ciclo, con experiencia academica en dashboards y analisis de datos.
+                questions:
+                  - question: Cuentame de un proyecto donde usaste datos.
+                    suggestedAnswer: Use el proyecto de dashboard de ventas y explique el proceso con estructura STAR.
+                  - question: Que harias si encuentras datos incompletos?
+                    suggestedAnswer: Explicar limpieza, validacion y comunicacion de supuestos.
+
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: Listar vacantes
+      x-roles: [student, company]
+      x-pages: [/student/opportunities, /company/dashboard]
+      x-ui-usage: Lista vacantes base para Oportunidades y resumen de vacantes activas de empresa.
+      x-data-sources: [postgres]
+      x-computed-by: jobs.service
+      parameters:
+        - in: query
+          name: roleId
+          required: false
+          schema:
+            type: string
+          example: role_data_intern
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [active, closed]
+          example: active
+      responses:
+        "200":
+          description: Vacantes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobs]
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/JobSummary"
+              example:
+                jobs:
+                  - id: job_data_retail
+                    title: Practicante de Analisis de Datos
+                    companyName: Retail Andino
+                    modality: Hibrido
+                    location: Lima
+                    hours: 30h semanales
+                  - id: job_bi_finanzas
+                    title: Practicante BI Junior
+                    companyName: Finanzas Nova
+                    modality: Remoto
+                    location: Lima
+                    hours: 30h semanales
+                  - id: job_operations_logisur
+                    title: Practicante de Operaciones
+                    companyName: Logisur
+                    modality: Presencial
+                    location: Lima
+                    hours: 30h semanales
+                  - id: job_marketing_talentolab
+                    title: Asistente de Marketing Digital
+                    companyName: TalentoLab
+                    modality: Hibrido
+                    location: Lima
+                    hours: Medio tiempo
+                  - id: job_hr_talentolab
+                    title: Practicante de Recursos Humanos
+                    companyName: TalentoLab
+                    modality: Remoto
+                    location: Lima
+                    hours: Medio tiempo
+                  - id: job_support_datamarket
+                    title: Soporte TI Junior
+                    companyName: DataMarket Peru
+                    modality: Presencial
+                    location: Lima
+                    hours: Tiempo completo
+
+  /students/{studentId}/job-matches:
+    get:
+      tags: [Jobs]
+      summary: Obtener vacantes recomendadas para estudiante
+      x-roles: [student]
+      x-pages: [/student/home, /student/opportunities]
+      x-ui-usage: Alimenta vacantes sugeridas en Inicio y cards principales de Oportunidades.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: matching.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Matches de vacantes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [matches]
+                properties:
+                  matches:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/JobMatch"
+              example:
+                matches:
+                  - jobId: job_data_retail
+                    title: Practicante de Analisis de Datos
+                    companyName: Retail Andino
+                    matchScore: 74
+                    status: viable
+                    summary: Buen ajuste, reforzar SQL.
+                    topStrengths: [Power BI, Excel, Proyecto academico]
+                    criticalGaps: [SQL]
+                  - jobId: job_bi_finanzas
+                    title: Practicante BI Junior
+                    companyName: Finanzas Nova
+                    matchScore: 58
+                    status: aspirational
+                    summary: Interesante, pero pide SQL e ingles intermedio.
+                    topStrengths: [Power BI]
+                    criticalGaps: [SQL, Ingles]
+                  - jobId: job_support_datamarket
+                    title: Soporte TI Junior
+                    companyName: DataMarket Peru
+                    matchScore: 63
+                    status: aspirational
+                    summary: Tiene base tecnica, pero no es su meta principal.
+                    topStrengths: [Resolucion de problemas, Comunicacion]
+                    criticalGaps: [Soporte a usuarios]
+                  - jobId: job_commercial_retail
+                    title: Asistente Comercial Junior
+                    companyName: Retail Andino
+                    matchScore: 60
+                    status: aspirational
+                    summary: Puede aplicar si orienta su evidencia a reportes comerciales.
+                    topStrengths: [Excel, Dashboard]
+                    criticalGaps: [Indicadores comerciales]
+
+  /students/{studentId}/jobs/{jobId}/application-kit:
+    get:
+      tags: [Jobs]
+      summary: Obtener kit de postulacion para una vacante
+      x-roles: [student]
+      x-pages: [/student/opportunities]
+      x-ui-usage: Alimenta panel Kit de postulacion con CV bullets, pitch, riesgos, preguntas y recomendacion.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: application-kit.service, matching.service, interview-kit.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Kit de postulacion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationKit"
+              example:
+                jobId: job_data_retail
+                matchScore: 74
+                cvBullets:
+                  - Desarrolle un dashboard de ventas en Power BI a partir de datos limpiados en Excel, identificando productos de mayor margen para apoyar decisiones comerciales.
+                pitch: Soy estudiante de Ingenieria de Sistemas de 8vo ciclo con base en Excel, Power BI y analisis de informacion comercial.
+                interviewQuestions:
+                  - Cuentame de un proyecto donde transformaste datos en una recomendacion.
+                  - Como validarias una base con datos incompletos?
+                risks:
+                  - SQL aparece como brecha parcial. Preparar ejemplo de aprendizaje o practica.
+                applyRecommendation: Postular hoy con CV ajustado y compromiso de reforzar SQL.
+
+  /students/{studentId}/applications:
+    get:
+      tags: [Jobs]
+      summary: Listar postulaciones del estudiante
+      x-roles: [student]
+      x-pages: [/student/opportunities, /student/home]
+      x-ui-usage: Alimenta historial de postulaciones y contador de progreso.
+      x-data-sources: [postgres]
+      x-computed-by: applications.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Postulaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [applications]
+                properties:
+                  applications:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Application"
+              example:
+                applications:
+                  - id: app_001
+                    jobTitle: Practicante de Analisis de Datos
+                    companyName: Retail Andino
+                    matchScore: 74
+                    status: prepared
+                    nextAction: Enviar postulacion y practicar entrevista.
+    post:
+      tags: [Jobs]
+      summary: Crear o registrar postulacion preparada
+      x-roles: [student]
+      x-pages: [/student/opportunities]
+      x-ui-usage: Se llama cuando el alumno marca una vacante como preparada o postulada.
+      x-data-sources: [postgres]
+      x-computed-by: applications.service
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jobId, status]
+              properties:
+                jobId:
+                  type: string
+                status:
+                  type: string
+                  enum: [prepared, applied, interviewing, rejected, accepted]
+                notes:
+                  type: string
+            example:
+              jobId: job_data_retail
+              status: prepared
+              notes: CV ajustado con evidencia de dashboard.
+      responses:
+        "201":
+          description: Postulacion creada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, studentId, jobId, status, createdAt]
+                properties:
+                  id:
+                    type: string
+                  studentId:
+                    type: string
+                  jobId:
+                    type: string
+                  status:
+                    type: string
+                  createdAt:
+                    type: string
+                    format: date-time
+              example:
+                id: app_001
+                studentId: stu_camila
+                jobId: job_data_retail
+                status: prepared
+                createdAt: "2026-06-10T00:00:00Z"
+
+  /challenges:
+    get:
+      tags: [Challenges]
+      summary: Listar micro-retos
+      x-roles: [student]
+      x-pages: [/student/challenges, /student/route]
+      x-ui-usage: Alimenta cards de retos y recomendaciones dentro del plan de accion.
+      x-data-sources: [json-config]
+      x-computed-by: challenges-config.service
+      parameters:
+        - in: query
+          name: roleId
+          required: false
+          schema:
+            type: string
+          example: role_data_intern
+      responses:
+        "200":
+          description: Retos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [challenges]
+                properties:
+                  challenges:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ChallengeSummary"
+              example:
+                challenges:
+                  - id: cha_sales_insight
+                    title: Insight rapido de ventas
+                    difficulty: Basico
+                    durationMinutes: 45
+                    skills: [Excel, Power BI, Pensamiento critico]
+                  - id: cha_sql_basics
+                    title: Consulta SQL simple
+                    difficulty: Basico
+                    durationMinutes: 30
+                    skills: [SQL]
+
+  /challenges/{challengeId}:
+    get:
+      tags: [Challenges]
+      summary: Obtener detalle de micro-reto
+      x-roles: [student]
+      x-pages: [/student/challenges]
+      x-ui-usage: Alimenta la vista/drawer de detalle del reto antes de enviar respuesta.
+      x-data-sources: [json-config]
+      x-computed-by: challenges-config.service
+      parameters:
+        - $ref: "#/components/parameters/ChallengeId"
+      responses:
+        "200":
+          description: Detalle de reto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeDetail"
+              example:
+                id: cha_sales_insight
+                title: Insight rapido de ventas
+                brief: Analiza una tabla de ventas y encuentra 2 oportunidades de mejora.
+                datasetPreview:
+                  - product: A
+                    sales: 1200
+                    margin: 0.35
+                  - product: B
+                    sales: 1800
+                    margin: 0.12
+                questions:
+                  - id: q1
+                    type: textarea
+                    label: Que oportunidad detectas?
+                  - id: q2
+                    type: textarea
+                    label: Que recomendacion darias?
+
+  /challenges/{challengeId}/submit:
+    post:
+      tags: [Challenges]
+      summary: Enviar respuesta de reto
+      x-roles: [student]
+      x-pages: [/student/challenges, /student/profile]
+      x-ui-usage: Envia respuestas del reto y devuelve score, feedback y evidencia generada para Perfil Profesional.
+      x-data-sources: [postgres, json-config, computed-service]
+      x-computed-by: challenge-evaluation.service, evidences.service, cv-bullet.service
+      parameters:
+        - $ref: "#/components/parameters/ChallengeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitChallengeRequest"
+            example:
+              studentId: stu_camila
+              answers:
+                - questionId: q1
+                  value: El producto B vende mas, pero tiene margen bajo.
+                - questionId: q2
+                  value: Revisaria costos y priorizaria productos con mejor margen.
+      responses:
+        "200":
+          description: Resultado del reto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitChallengeResponse"
+              example:
+                submissionId: sub_001
+                score: 78
+                feedback: Buen analisis inicial. Tu recomendacion conecta ventas y margen.
+                generatedEvidence:
+                  id: ev_006
+                  title: Micro-reto de analisis de ventas
+                  cvBullet: Analice una tabla de ventas y margen para identificar oportunidades comerciales, priorizando productos con mejor rentabilidad y proponiendo acciones de mejora.
+
+  /companies/{companyId}/dashboard:
+    get:
+      tags: [Companies]
+      summary: Obtener dashboard de empresa
+      x-roles: [company]
+      x-pages: [/company/dashboard]
+      x-ui-usage: Alimenta metricas, vacantes activas, candidatos recomendados y brechas comunes de empresa.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: company-dashboard.service, matching.service
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: Dashboard de empresa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyDashboard"
+              example:
+                company:
+                  id: comp_retail_andino
+                  name: Retail Andino
+                  sector: Retail
+                metrics:
+                  activeJobs: 3
+                  recommendedCandidates: 18
+                  averageMatch: 76
+                  estimatedReviewTimeSavedHours: 8
+                activeJobs:
+                  - jobId: job_data_retail
+                    title: Practicante de Analisis de Datos
+                    recommendedCandidates: 6
+                    averageMatch: 74
+                  - jobId: job_commercial_retail
+                    title: Asistente Comercial Junior
+                    recommendedCandidates: 5
+                    averageMatch: 71
+                  - jobId: job_ops_retail
+                    title: Practicante de Operaciones Retail
+                    recommendedCandidates: 4
+                    averageMatch: 69
+                commonGaps: [SQL, Ingles, Entrevista]
+
+  /companies/{companyId}/jobs:
+    get:
+      tags: [Companies]
+      summary: Listar vacantes de empresa
+      x-roles: [company]
+      x-pages: [/company/dashboard, /company/talent]
+      x-ui-usage: Llena selector de vacante en Talento Recomendado y resumen en Dashboard Empresa.
+      x-data-sources: [postgres]
+      x-computed-by: company-jobs.service
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: Vacantes de empresa
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobs]
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title, status]
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        status:
+                          type: string
+              example:
+                jobs:
+                  - id: job_data_retail
+                    title: Practicante de Analisis de Datos
+                    status: active
+                  - id: job_commercial_retail
+                    title: Asistente Comercial Junior
+                    status: active
+                  - id: job_ops_retail
+                    title: Practicante de Operaciones Retail
+                    status: active
+
+  /companies/{companyId}/jobs/{jobId}/candidates:
+    get:
+      tags: [Companies]
+      summary: Obtener candidatos recomendados por vacante
+      x-roles: [company]
+      x-pages: [/company/talent]
+      x-ui-usage: Alimenta ranking de candidatos, match tecnico/blando, evidencias, brechas y preguntas sugeridas.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: company-candidates.service, matching.service, interview-kit.service
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Candidatos recomendados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyCandidates"
+              example:
+                job:
+                  id: job_data_retail
+                  title: Practicante de Analisis de Datos
+                candidates:
+                  - studentId: stu_camila
+                    name: Camila Torres
+                    career: Ingenieria de Sistemas e Informatica
+                    cycle: 8
+                    matchScore: 74
+                    technicalMatch: 70
+                    softMatch: 82
+                    status: viable
+                    evidenceHighlights:
+                      - Dashboard de ventas en Power BI
+                      - Micro-reto de analisis de ventas
+                    gaps:
+                      - skillName: SQL
+                        severity: partial
+                    interviewQuestions:
+                      - Como limpiaste y validaste los datos del dashboard?
+                      - Que haras para reforzar SQL en las proximas dos semanas?
+                  - studentId: stu_renzo
+                    name: Renzo Castillo
+                    career: Ingenieria de Sistemas e Informatica
+                    cycle: 10
+                    matchScore: 68
+                    technicalMatch: 74
+                    softMatch: 62
+                    status: viable
+                    evidenceHighlights:
+                      - Soporte tecnico a usuarios en proyecto academico
+                      - Documentacion de incidencias
+                    gaps:
+                      - skillName: Power BI
+                        severity: partial
+                    interviewQuestions:
+                      - Como documentarias un problema recurrente?
+                      - Que experiencia tienes explicando temas tecnicos?
+                  - studentId: stu_luis
+                    name: Luis Mendoza
+                    career: Ingenieria Industrial
+                    cycle: 9
+                    matchScore: 61
+                    technicalMatch: 58
+                    softMatch: 70
+                    status: aspirational
+                    evidenceHighlights:
+                      - Analisis de tiempos de proceso
+                    gaps:
+                      - skillName: SQL
+                        severity: critical
+                      - skillName: Power BI
+                        severity: partial
+                    interviewQuestions:
+                      - Como conectarias tu experiencia de procesos con datos?
+                  - studentId: stu_diego
+                    name: Diego Ramos
+                    career: Administracion
+                    cycle: 7
+                    matchScore: 52
+                    technicalMatch: 48
+                    softMatch: 68
+                    status: aspirational
+                    evidenceHighlights:
+                      - Reporte comercial en Excel
+                    gaps:
+                      - skillName: SQL
+                        severity: critical
+                      - skillName: Power BI
+                        severity: partial
+                    interviewQuestions:
+                      - Que indicadores comerciales has analizado?
+
+  /companies/{companyId}/candidates/{studentId}:
+    get:
+      tags: [Companies]
+      summary: Obtener detalle de candidato para empresa
+      x-roles: [company]
+      x-pages: [/company/talent]
+      x-ui-usage: Alimenta panel de detalle de candidato al seleccionar una card en Talento Recomendado.
+      x-data-sources: [postgres, computed-service]
+      x-computed-by: company-candidates.service, matching.service
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/StudentId"
+        - in: query
+          name: jobId
+          required: true
+          schema:
+            type: string
+          example: job_data_retail
+      responses:
+        "200":
+          description: Detalle de candidato
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyCandidateDetail"
+              example:
+                student:
+                  id: stu_camila
+                  name: Camila Torres
+                  career: Ingenieria de Sistemas e Informatica
+                  cycle: 8
+                  availability: Practicas preprofesionales - 30h
+                match:
+                  score: 74
+                  technicalMatch: 70
+                  softMatch: 82
+                  summary: Candidata viable con evidencia en BI y brecha parcial en SQL.
+                evidences:
+                  - title: Dashboard de ventas para curso de BI
+                    skills: [Excel, Power BI, Comunicacion]
+                    cvBullet: Desarrolle un dashboard de ventas en Power BI a partir de datos limpiados en Excel.
+                risks: [SQL parcial, Ingles basico]
+                suggestedInterviewQuestions:
+                  - Explica tu proceso para crear el dashboard.
+                  - Que consulta SQL practicarias para este rol?
+
+  /advisor/impact:
+    get:
+      tags: [Advisor]
+      summary: Obtener dashboard de impacto UTP
+      x-roles: [advisor]
+      x-pages: [/advisor/impact]
+      x-ui-usage: Alimenta metricas institucionales, brechas top, roles buscados y recursos UTP recomendados.
+      x-data-sources: [postgres, json-config, computed-service]
+      x-computed-by: advisor-impact.service, resource-recommendation.service
+      responses:
+        "200":
+          description: Impacto institucional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdvisorImpact"
+              example:
+                metrics:
+                  activeStudents: 1240
+                  generatedEvidences: 3180
+                  preparedApplications: 860
+                  companiesActive: 42
+                  studentsReadyForInterview: 390
+                  averageMatchImprovement: 18
+                topGaps:
+                  - skillName: Ingles
+                    studentsAffected: 420
+                    recommendedResource: English Discoveries
+                  - skillName: SQL
+                    studentsAffected: 310
+                    recommendedResource: Micro-reto SQL
+                topRoles:
+                  - roleName: Practicante de Analisis de Datos
+                    students: 280
+                    activeJobs: 12
+                  - roleName: Asistente de Marketing
+                    students: 210
+                    activeJobs: 9
+                resourceRecommendations:
+                  - resourceName: Ruta Laboral Virtual
+                    recommendations: 720
+                  - resourceName: English Discoveries
+                    recommendations: 420
+
+components:
+  parameters:
+    StudentId:
+      in: path
+      name: studentId
+      required: true
+      schema:
+        type: string
+      example: stu_camila
+    EvidenceId:
+      in: path
+      name: evidenceId
+      required: true
+      schema:
+        type: string
+      example: ev_001
+    JobId:
+      in: path
+      name: jobId
+      required: true
+      schema:
+        type: string
+      example: job_data_retail
+    ChallengeId:
+      in: path
+      name: challengeId
+      required: true
+      schema:
+        type: string
+      example: cha_sales_insight
+    CompanyId:
+      in: path
+      name: companyId
+      required: true
+      schema:
+        type: string
+      example: comp_retail_andino
+
+  responses:
+    BadRequest:
+      description: Request invalido
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: BAD_REQUEST
+              message: career, cycle, modality y targetRoleId son obligatorios.
+
+  schemas:
+    UserRole:
+      type: string
+      enum: [student, company, advisor]
+    AuthProvider:
+      type: string
+      enum: [microsoft, credentials]
+    Status:
+      type: string
+      enum: [ready, viable, aspirational, not_recommended, partial, critical]
+    User:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+    AuthSession:
+      type: object
+      required: [user, authProvider, requiresOnboarding, redirectTo]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        companyId:
+          type: string
+          nullable: true
+        authProvider:
+          $ref: "#/components/schemas/AuthProvider"
+        requiresOnboarding:
+          type: boolean
+        redirectTo:
+          type: string
+    AcademicProfile:
+      type: object
+      required: [career, cycle, campus, modality]
+      properties:
+        career:
+          type: string
+        cycle:
+          type: integer
+          minimum: 1
+          maximum: 12
+        campus:
+          type: string
+        modality:
+          type: string
+    EmploymentGoal:
+      type: object
+      required: [targetRoleId, targetRoleName, availability, preferredWorkMode, applicationTimeframe]
+      properties:
+        targetRoleId:
+          type: string
+        targetRoleName:
+          type: string
+        availability:
+          type: string
+        preferredWorkMode:
+          type: string
+        applicationTimeframe:
+          type: string
+    InitialEvidence:
+      type: object
+      required: [type, title, context, actions, result, skills]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        context:
+          type: string
+        actions:
+          type: string
+        result:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+    SelfAssessment:
+      type: object
+      required: [knownSkills, perceivedGaps, cvStatus]
+      properties:
+        knownSkills:
+          type: array
+          items:
+            type: string
+        perceivedGaps:
+          type: array
+          items:
+            type: string
+        cvStatus:
+          type: string
+          enum: [missing, incomplete, updated]
+        linkedinUrl:
+          type: string
+          nullable: true
+    OnboardingRequest:
+      type: object
+      required: [academicProfile, employmentGoal, selfAssessment]
+      properties:
+        academicProfile:
+          $ref: "#/components/schemas/AcademicProfile"
+        employmentGoal:
+          $ref: "#/components/schemas/EmploymentGoal"
+        initialEvidence:
+          $ref: "#/components/schemas/InitialEvidence"
+        selfAssessment:
+          $ref: "#/components/schemas/SelfAssessment"
+    CreatedEvidence:
+      type: object
+      required: [id, title, cvBullet]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        cvBullet:
+          type: string
+    GoalSummary:
+      type: object
+      required: [roleId, roleName]
+      properties:
+        roleId:
+          type: string
+        roleName:
+          type: string
+        readinessScore:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          nullable: true
+    InitialDiagnosis:
+      type: object
+      required: [readinessScore, status, criticalGaps]
+      properties:
+        readinessScore:
+          type: integer
+        status:
+          type: string
+        criticalGaps:
+          type: array
+          items:
+            type: string
+    OnboardingResponse:
+      type: object
+      required: [studentId, onboardingCompleted, goal, initialDiagnosis, redirectTo]
+      properties:
+        studentId:
+          type: string
+        onboardingCompleted:
+          type: boolean
+        createdEvidence:
+          $ref: "#/components/schemas/CreatedEvidence"
+        goal:
+          $ref: "#/components/schemas/GoalSummary"
+        initialDiagnosis:
+          $ref: "#/components/schemas/InitialDiagnosis"
+        redirectTo:
+          type: string
+    StudentSummary:
+      type: object
+      required: [id, name, career, cycle, modality]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        career:
+          type: string
+        cycle:
+          type: integer
+        modality:
+          type: string
+    NextBestAction:
+      type: object
+      required: [title, description, targetPage]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        targetPage:
+          type: string
+    CriticalGap:
+      type: object
+      required: [skillName, severity, message]
+      properties:
+        skillName:
+          type: string
+        severity:
+          type: string
+        message:
+          type: string
+    RecommendedJob:
+      type: object
+      required: [jobId, title, companyName, matchScore, status]
+      properties:
+        jobId:
+          type: string
+        title:
+          type: string
+        companyName:
+          type: string
+        matchScore:
+          type: integer
+        status:
+          type: string
+    RecommendedResource:
+      type: object
+      required: [resourceId, name, reason]
+      properties:
+        resourceId:
+          type: string
+        name:
+          type: string
+        reason:
+          type: string
+    StudentProgress:
+      type: object
+      required: [evidences, challengesCompleted, applications, interviewPractice]
+      properties:
+        evidences:
+          type: integer
+        challengesCompleted:
+          type: integer
+        applications:
+          type: integer
+        interviewPractice:
+          type: integer
+    StudentDashboard:
+      type: object
+      required: [student, goal, nextBestAction, criticalGaps, recommendedJobs, recommendedResources, progress]
+      properties:
+        student:
+          $ref: "#/components/schemas/StudentSummary"
+        goal:
+          $ref: "#/components/schemas/GoalSummary"
+        nextBestAction:
+          $ref: "#/components/schemas/NextBestAction"
+        criticalGaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/CriticalGap"
+        recommendedJobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendedJob"
+        recommendedResources:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendedResource"
+        progress:
+          $ref: "#/components/schemas/StudentProgress"
+    Role:
+      type: object
+      required: [id, name, family, recommendedCycleMin]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        family:
+          type: string
+        recommendedCycleMin:
+          type: integer
+    DiagnosisDimension:
+      type: object
+      required: [name, score, status]
+      properties:
+        name:
+          type: string
+        score:
+          type: integer
+        status:
+          type: string
+    Diagnosis:
+      type: object
+      required: [studentId, role, readinessScore, dimensions, message]
+      properties:
+        studentId:
+          type: string
+        role:
+          $ref: "#/components/schemas/GoalSummary"
+        readinessScore:
+          type: integer
+        dimensions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagnosisDimension"
+        message:
+          type: string
+    GapItem:
+      type: object
+      required: [skillId, skillName, currentLevel, requiredLevel, severity, recommendedAction]
+      properties:
+        skillId:
+          type: string
+        skillName:
+          type: string
+        currentLevel:
+          type: integer
+        requiredLevel:
+          type: integer
+        severity:
+          type: string
+        recommendedAction:
+          type: string
+    GapAnalysis:
+      type: object
+      required: [studentId, jobId, matchScore, gaps, canApplyToday, applyAdvice]
+      properties:
+        studentId:
+          type: string
+        jobId:
+          type: string
+        matchScore:
+          type: integer
+        gaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/GapItem"
+        canApplyToday:
+          type: boolean
+        applyAdvice:
+          type: string
+    ActionPlanDay:
+      type: object
+      required: [day, title, type, minutes]
+      properties:
+        day:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+        minutes:
+          type: integer
+        resourceId:
+          type: string
+          nullable: true
+    ActionPlan:
+      type: object
+      required: [studentId, days]
+      properties:
+        studentId:
+          type: string
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActionPlanDay"
+    Evidence:
+      type: object
+      required: [id, title, type, skills, cvBullet]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        cvBullet:
+          type: string
+    CreateEvidenceRequest:
+      type: object
+      required: [title, type, context, actions, result, skills]
+      properties:
+        title:
+          type: string
+        type:
+          type: string
+        context:
+          type: string
+        actions:
+          type: string
+        result:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+    CreateEvidenceResponse:
+      type: object
+      required: [id, studentId, title, cvBullet, starStory, skillsMapped]
+      properties:
+        id:
+          type: string
+        studentId:
+          type: string
+        title:
+          type: string
+        cvBullet:
+          type: string
+        starStory:
+          type: string
+        skillsMapped:
+          type: array
+          items:
+            type: string
+    CvBullet:
+      type: object
+      required: [evidenceId, text, recommended]
+      properties:
+        evidenceId:
+          type: string
+        text:
+          type: string
+        recommended:
+          type: boolean
+    StudentCv:
+      type: object
+      required: [studentId, targetRole, summary, bullets, missingSections]
+      properties:
+        studentId:
+          type: string
+        targetRole:
+          type: string
+        summary:
+          type: string
+        bullets:
+          type: array
+          items:
+            $ref: "#/components/schemas/CvBullet"
+        missingSections:
+          type: array
+          items:
+            type: string
+    Competency:
+      type: object
+      required: [name, level, evidenceCount, evidences]
+      properties:
+        name:
+          type: string
+        level:
+          type: integer
+        evidenceCount:
+          type: integer
+        evidences:
+          type: array
+          items:
+            type: string
+    Passport:
+      type: object
+      required: [studentId, competencies]
+      properties:
+        studentId:
+          type: string
+        competencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Competency"
+    InterviewQuestion:
+      type: object
+      required: [question, suggestedAnswer]
+      properties:
+        question:
+          type: string
+        suggestedAnswer:
+          type: string
+    InterviewKit:
+      type: object
+      required: [pitch, questions]
+      properties:
+        pitch:
+          type: string
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewQuestion"
+    JobSummary:
+      type: object
+      required: [id, title, companyName, modality, location, hours]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        companyName:
+          type: string
+        modality:
+          type: string
+        location:
+          type: string
+        hours:
+          type: string
+    JobMatch:
+      type: object
+      required: [jobId, title, companyName, matchScore, status, summary, topStrengths, criticalGaps]
+      properties:
+        jobId:
+          type: string
+        title:
+          type: string
+        companyName:
+          type: string
+        matchScore:
+          type: integer
+        status:
+          type: string
+        summary:
+          type: string
+        topStrengths:
+          type: array
+          items:
+            type: string
+        criticalGaps:
+          type: array
+          items:
+            type: string
+    ApplicationKit:
+      type: object
+      required: [jobId, matchScore, cvBullets, pitch, interviewQuestions, risks, applyRecommendation]
+      properties:
+        jobId:
+          type: string
+        matchScore:
+          type: integer
+        cvBullets:
+          type: array
+          items:
+            type: string
+        pitch:
+          type: string
+        interviewQuestions:
+          type: array
+          items:
+            type: string
+        risks:
+          type: array
+          items:
+            type: string
+        applyRecommendation:
+          type: string
+    Application:
+      type: object
+      required: [id, jobTitle, companyName, matchScore, status, nextAction]
+      properties:
+        id:
+          type: string
+        jobTitle:
+          type: string
+        companyName:
+          type: string
+        matchScore:
+          type: integer
+        status:
+          type: string
+        nextAction:
+          type: string
+    ChallengeSummary:
+      type: object
+      required: [id, title, difficulty, durationMinutes, skills]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        difficulty:
+          type: string
+        durationMinutes:
+          type: integer
+        skills:
+          type: array
+          items:
+            type: string
+    DatasetRow:
+      type: object
+      additionalProperties: true
+    ChallengeQuestion:
+      type: object
+      required: [id, type, label]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        label:
+          type: string
+    ChallengeDetail:
+      type: object
+      required: [id, title, brief, datasetPreview, questions]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        brief:
+          type: string
+        datasetPreview:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatasetRow"
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChallengeQuestion"
+    SubmitChallengeAnswer:
+      type: object
+      required: [questionId, value]
+      properties:
+        questionId:
+          type: string
+        value:
+          type: string
+    SubmitChallengeRequest:
+      type: object
+      required: [studentId, answers]
+      properties:
+        studentId:
+          type: string
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubmitChallengeAnswer"
+    SubmitChallengeResponse:
+      type: object
+      required: [submissionId, score, feedback, generatedEvidence]
+      properties:
+        submissionId:
+          type: string
+        score:
+          type: integer
+        feedback:
+          type: string
+        generatedEvidence:
+          $ref: "#/components/schemas/CreatedEvidence"
+    CompanySummary:
+      type: object
+      required: [id, name, sector]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        sector:
+          type: string
+    CompanyMetrics:
+      type: object
+      required: [activeJobs, recommendedCandidates, averageMatch, estimatedReviewTimeSavedHours]
+      properties:
+        activeJobs:
+          type: integer
+        recommendedCandidates:
+          type: integer
+        averageMatch:
+          type: integer
+        estimatedReviewTimeSavedHours:
+          type: integer
+    CompanyActiveJob:
+      type: object
+      required: [jobId, title, recommendedCandidates, averageMatch]
+      properties:
+        jobId:
+          type: string
+        title:
+          type: string
+        recommendedCandidates:
+          type: integer
+        averageMatch:
+          type: integer
+    CompanyDashboard:
+      type: object
+      required: [company, metrics, activeJobs, commonGaps]
+      properties:
+        company:
+          $ref: "#/components/schemas/CompanySummary"
+        metrics:
+          $ref: "#/components/schemas/CompanyMetrics"
+        activeJobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompanyActiveJob"
+        commonGaps:
+          type: array
+          items:
+            type: string
+    CandidateGap:
+      type: object
+      required: [skillName, severity]
+      properties:
+        skillName:
+          type: string
+        severity:
+          type: string
+    CompanyCandidate:
+      type: object
+      required: [studentId, name, career, cycle, matchScore, technicalMatch, softMatch, status, evidenceHighlights, gaps, interviewQuestions]
+      properties:
+        studentId:
+          type: string
+        name:
+          type: string
+        career:
+          type: string
+        cycle:
+          type: integer
+        matchScore:
+          type: integer
+        technicalMatch:
+          type: integer
+        softMatch:
+          type: integer
+        status:
+          type: string
+        evidenceHighlights:
+          type: array
+          items:
+            type: string
+        gaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/CandidateGap"
+        interviewQuestions:
+          type: array
+          items:
+            type: string
+    CompanyCandidates:
+      type: object
+      required: [job, candidates]
+      properties:
+        job:
+          type: object
+          required: [id, title]
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompanyCandidate"
+    CompanyCandidateDetail:
+      type: object
+      required: [student, match, evidences, risks, suggestedInterviewQuestions]
+      properties:
+        student:
+          type: object
+          required: [id, name, career, cycle, availability]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            career:
+              type: string
+            cycle:
+              type: integer
+            availability:
+              type: string
+        match:
+          type: object
+          required: [score, technicalMatch, softMatch, summary]
+          properties:
+            score:
+              type: integer
+            technicalMatch:
+              type: integer
+            softMatch:
+              type: integer
+            summary:
+              type: string
+        evidences:
+          type: array
+          items:
+            $ref: "#/components/schemas/Evidence"
+        risks:
+          type: array
+          items:
+            type: string
+        suggestedInterviewQuestions:
+          type: array
+          items:
+            type: string
+    AdvisorMetrics:
+      type: object
+      required: [activeStudents, generatedEvidences, preparedApplications, companiesActive, studentsReadyForInterview, averageMatchImprovement]
+      properties:
+        activeStudents:
+          type: integer
+        generatedEvidences:
+          type: integer
+        preparedApplications:
+          type: integer
+        companiesActive:
+          type: integer
+        studentsReadyForInterview:
+          type: integer
+        averageMatchImprovement:
+          type: integer
+    AdvisorTopGap:
+      type: object
+      required: [skillName, studentsAffected, recommendedResource]
+      properties:
+        skillName:
+          type: string
+        studentsAffected:
+          type: integer
+        recommendedResource:
+          type: string
+    AdvisorTopRole:
+      type: object
+      required: [roleName, students, activeJobs]
+      properties:
+        roleName:
+          type: string
+        students:
+          type: integer
+        activeJobs:
+          type: integer
+    ResourceRecommendation:
+      type: object
+      required: [resourceName, recommendations]
+      properties:
+        resourceName:
+          type: string
+        recommendations:
+          type: integer
+    AdvisorImpact:
+      type: object
+      required: [metrics, topGaps, topRoles, resourceRecommendations]
+      properties:
+        metrics:
+          $ref: "#/components/schemas/AdvisorMetrics"
+        topGaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdvisorTopGap"
+        topRoles:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdvisorTopRole"
+        resourceRecommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResourceRecommendation"
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+
