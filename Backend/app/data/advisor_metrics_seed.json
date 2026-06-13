@@ -1,0 +1,60 @@
+﻿{
+  "metrics": {
+    "activeStudents": 1240,
+    "generatedEvidences": 3180,
+    "preparedApplications": 860,
+    "companiesActive": 42,
+    "studentsReadyForInterview": 390,
+    "averageMatchImprovement": 18
+  },
+  "topGaps": [
+    {
+      "skillName": "Ingles",
+      "studentsAffected": 420,
+      "recommendedResource": "English Discoveries"
+    },
+    {
+      "skillName": "SQL",
+      "studentsAffected": 310,
+      "recommendedResource": "Micro-reto SQL"
+    },
+    {
+      "skillName": "Entrevista",
+      "studentsAffected": 260,
+      "recommendedResource": "Ruta Laboral Virtual"
+    }
+  ],
+  "topRoles": [
+    {
+      "roleName": "Practicante de Analisis de Datos",
+      "students": 280,
+      "activeJobs": 12
+    },
+    {
+      "roleName": "Asistente de Marketing Digital",
+      "students": 210,
+      "activeJobs": 9
+    },
+    {
+      "roleName": "Practicante de Operaciones",
+      "students": 190,
+      "activeJobs": 8
+    }
+  ],
+  "resourceRecommendations": [
+    {
+      "resourceName": "Ruta Laboral Virtual",
+      "recommendations": 720
+    },
+    {
+      "resourceName": "English Discoveries",
+      "recommendations": 420
+    },
+    {
+      "resourceName": "Bolsa de Trabajo UTP",
+      "recommendations": 380
+    }
+  ]
+}
+
+

@@ -1,0 +1,149 @@
+﻿[
+  {
+    "id": "cha_sales_insight",
+    "roleId": "role_data_intern",
+    "title": "Insight rapido de ventas",
+    "difficulty": "Basico",
+    "durationMinutes": 45,
+    "brief": "Analiza una tabla simple de ventas y margen para encontrar dos oportunidades de mejora.",
+    "skills": ["sk_excel", "sk_powerbi", "sk_critical_thinking"],
+    "datasetPreview": [
+      { "product": "A", "sales": 1200, "margin": 0.35 },
+      { "product": "B", "sales": 1800, "margin": 0.12 },
+      { "product": "C", "sales": 950, "margin": 0.42 }
+    ],
+    "questions": [
+      {
+        "id": "q1",
+        "type": "textarea",
+        "label": "Que oportunidad detectas?"
+      },
+      {
+        "id": "q2",
+        "type": "textarea",
+        "label": "Que recomendacion darias al negocio?"
+      }
+    ]
+  },
+  {
+    "id": "cha_sql_basics",
+    "roleId": "role_data_intern",
+    "title": "Consulta SQL simple",
+    "difficulty": "Basico",
+    "durationMinutes": 30,
+    "brief": "Explica que consulta usarias para obtener ventas por producto y filtrar productos con margen bajo.",
+    "skills": ["sk_sql", "sk_problem_solving"],
+    "datasetPreview": [
+      { "table": "sales", "columns": ["product", "sales", "margin", "month"] }
+    ],
+    "questions": [
+      {
+        "id": "q1",
+        "type": "textarea",
+        "label": "Escribe o describe la consulta SQL."
+      }
+    ]
+  },
+  {
+    "id": "cha_marketing_brief",
+    "roleId": "role_marketing_assistant",
+    "title": "Brief de campana digital",
+    "difficulty": "Basico",
+    "durationMinutes": 40,
+    "brief": "Propone una idea de campana digital para mejorar postulaciones a un programa de empleabilidad.",
+    "skills": ["sk_digital_marketing", "sk_writing", "sk_communication"],
+    "datasetPreview": [
+      { "channel": "Instagram", "reach": 18000, "clicks": 620 },
+      { "channel": "TikTok", "reach": 24000, "clicks": 710 }
+    ],
+    "questions": [
+      {
+        "id": "q1",
+        "type": "textarea",
+        "label": "Que insight usararias?"
+      },
+      {
+        "id": "q2",
+        "type": "textarea",
+        "label": "Que mensaje principal propones?"
+      }
+    ]
+  },
+  {
+    "id": "cha_operations_bottleneck",
+    "roleId": "role_operations_intern",
+    "title": "Cuello de botella operativo",
+    "difficulty": "Basico",
+    "durationMinutes": 45,
+    "brief": "Revisa tiempos de proceso y detecta donde se genera mayor demora.",
+    "skills": ["sk_excel", "sk_process_management", "sk_problem_solving"],
+    "datasetPreview": [
+      { "step": "Recepcion", "minutes": 12 },
+      { "step": "Validacion", "minutes": 38 },
+      { "step": "Despacho", "minutes": 18 }
+    ],
+    "questions": [
+      {
+        "id": "q1",
+        "type": "textarea",
+        "label": "Donde esta el cuello de botella?"
+      },
+      {
+        "id": "q2",
+        "type": "textarea",
+        "label": "Que mejora propones?"
+      }
+    ]
+  },
+  {
+    "id": "cha_soft_skills_technical_story",
+    "roleId": "role_software_intern",
+    "title": "Explica una solucion tecnica sin tecnicismos",
+    "difficulty": "Basico",
+    "durationMinutes": 30,
+    "brief": "Resume una mejora de software para un usuario no tecnico y explica el impacto de negocio.",
+    "skills": ["sk_communication", "sk_interview", "sk_problem_solving"],
+    "datasetPreview": [
+      { "feature": "Filtro de busqueda", "userProblem": "Los usuarios tardan mucho encontrando registros" }
+    ],
+    "questions": [
+      {
+        "id": "q1",
+        "type": "textarea",
+        "label": "Como explicarias la solucion a un usuario no tecnico?"
+      },
+      {
+        "id": "q2",
+        "type": "textarea",
+        "label": "Que impacto medible tendria?"
+      }
+    ]
+  },
+  {
+    "id": "cha_people_analytics_python",
+    "roleId": "role_people_analytics",
+    "title": "Primer analisis de clima con Python",
+    "difficulty": "Basico",
+    "durationMinutes": 45,
+    "brief": "Lee resultados de una encuesta de clima y propone que variable revisar primero.",
+    "skills": ["sk_python", "sk_excel", "sk_communication"],
+    "datasetPreview": [
+      { "area": "Ventas", "satisfaction": 3.2, "turnoverRisk": "Alto" },
+      { "area": "Operaciones", "satisfaction": 4.1, "turnoverRisk": "Medio" }
+    ],
+    "questions": [
+      {
+        "id": "q1",
+        "type": "textarea",
+        "label": "Que hallazgo inicial encuentras?"
+      },
+      {
+        "id": "q2",
+        "type": "textarea",
+        "label": "Que grafico o analisis harias con Python o Excel?"
+      }
+    ]
+  }
+]
+
+

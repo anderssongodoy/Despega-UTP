@@ -1,0 +1,120 @@
+﻿[
+  {
+    "id": "role_data_intern",
+    "name": "Practicante de Analisis de Datos",
+    "family": "Tecnologia / Datos",
+    "description": "Apoya en limpieza, analisis y visualizacion de informacion para decisiones del negocio.",
+    "recommendedCycleMin": 7,
+    "skills": [
+      { "skillId": "sk_excel", "requiredLevel": 4, "importance": "critical" },
+      { "skillId": "sk_sql", "requiredLevel": 3, "importance": "critical" },
+      { "skillId": "sk_powerbi", "requiredLevel": 3, "importance": "important" },
+      { "skillId": "sk_communication", "requiredLevel": 3, "importance": "important" },
+      { "skillId": "sk_english", "requiredLevel": 3, "importance": "important" }
+    ]
+  },
+  {
+    "id": "role_marketing_assistant",
+    "name": "Asistente de Marketing Digital",
+    "family": "Marketing / Comunicacion",
+    "description": "Apoya campanas digitales, contenido, reportes y seguimiento de indicadores.",
+    "recommendedCycleMin": 6,
+    "skills": [
+      { "skillId": "sk_excel", "requiredLevel": 3, "importance": "important" },
+      { "skillId": "sk_digital_marketing", "requiredLevel": 3, "importance": "critical" },
+      { "skillId": "sk_writing", "requiredLevel": 3, "importance": "critical" },
+      { "skillId": "sk_communication", "requiredLevel": 3, "importance": "important" }
+    ]
+  },
+  {
+    "id": "role_operations_intern",
+    "name": "Practicante de Operaciones",
+    "family": "Operaciones",
+    "description": "Apoya control de procesos, seguimiento operativo, mejora continua e indicadores.",
+    "recommendedCycleMin": 7,
+    "skills": [
+      { "skillId": "sk_excel", "requiredLevel": 4, "importance": "critical" },
+      { "skillId": "sk_process_management", "requiredLevel": 3, "importance": "critical" },
+      { "skillId": "sk_problem_solving", "requiredLevel": 3, "importance": "important" },
+      { "skillId": "sk_communication", "requiredLevel": 3, "importance": "important" }
+    ]
+  },
+  {
+    "id": "role_commercial_analyst",
+    "name": "Analista Comercial Junior",
+    "family": "Negocios / Comercial",
+    "description": "Apoya seguimiento de ventas, reportes comerciales y analisis de clientes.",
+    "recommendedCycleMin": 7,
+    "skills": [
+      { "skillId": "sk_excel", "requiredLevel": 4, "importance": "critical" },
+      { "skillId": "sk_communication", "requiredLevel": 3, "importance": "important" },
+      { "skillId": "sk_problem_solving", "requiredLevel": 3, "importance": "important" }
+    ]
+  },
+  {
+    "id": "role_hr_intern",
+    "name": "Practicante de Recursos Humanos",
+    "family": "Personas / Recursos Humanos",
+    "description": "Apoya procesos de seleccion, comunicacion interna y gestion documental de talento.",
+    "recommendedCycleMin": 7,
+    "skills": [
+      { "skillId": "sk_communication", "requiredLevel": 4, "importance": "critical" },
+      { "skillId": "sk_organization", "requiredLevel": 3, "importance": "important" },
+      { "skillId": "sk_interview", "requiredLevel": 3, "importance": "important" }
+    ]
+  },
+  {
+    "id": "role_it_support",
+    "name": "Soporte TI Junior",
+    "family": "Tecnologia / Soporte",
+    "description": "Apoya atencion de incidencias, soporte a usuarios y documentacion tecnica.",
+    "recommendedCycleMin": 6,
+    "skills": [
+      { "skillId": "sk_problem_solving", "requiredLevel": 4, "importance": "critical" },
+      { "skillId": "sk_communication", "requiredLevel": 3, "importance": "important" },
+      { "skillId": "sk_english", "requiredLevel": 2, "importance": "optional" }
+    ]
+  },
+  {
+    "id": "role_software_intern",
+    "name": "Practicante de Desarrollo de Software",
+    "family": "Tecnologia / Software",
+    "description": "Apoya desarrollo de funcionalidades, pruebas, documentacion tecnica y trabajo en equipo con producto.",
+    "recommendedCycleMin": 7,
+    "skills": [
+      { "skillId": "sk_python", "requiredLevel": 3, "importance": "critical" },
+      { "skillId": "sk_git", "requiredLevel": 3, "importance": "important" },
+      { "skillId": "sk_problem_solving", "requiredLevel": 4, "importance": "critical" },
+      { "skillId": "sk_communication", "requiredLevel": 3, "importance": "important" },
+      { "skillId": "sk_interview", "requiredLevel": 3, "importance": "important" }
+    ]
+  },
+  {
+    "id": "role_people_analytics",
+    "name": "Practicante de People Analytics",
+    "family": "Personas / Datos",
+    "description": "Apoya analisis de datos de talento, encuestas, clima laboral y reportes para decisiones de RRHH.",
+    "recommendedCycleMin": 7,
+    "skills": [
+      { "skillId": "sk_excel", "requiredLevel": 3, "importance": "critical" },
+      { "skillId": "sk_python", "requiredLevel": 2, "importance": "important" },
+      { "skillId": "sk_powerbi", "requiredLevel": 2, "importance": "important" },
+      { "skillId": "sk_communication", "requiredLevel": 4, "importance": "critical" }
+    ]
+  },
+  {
+    "id": "role_marketing_analytics",
+    "name": "Asistente de Marketing Analytics",
+    "family": "Marketing / Datos",
+    "description": "Apoya lectura de campanas, metricas digitales, reportes y recomendaciones para comunicacion comercial.",
+    "recommendedCycleMin": 7,
+    "skills": [
+      { "skillId": "sk_excel", "requiredLevel": 3, "importance": "critical" },
+      { "skillId": "sk_powerbi", "requiredLevel": 2, "importance": "important" },
+      { "skillId": "sk_digital_marketing", "requiredLevel": 3, "importance": "critical" },
+      { "skillId": "sk_writing", "requiredLevel": 4, "importance": "important" }
+    ]
+  }
+]
+
+
