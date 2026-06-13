@@ -422,7 +422,8 @@ def get_student_dashboard(student_id: str, conn: Annotated[object, Depends(get_c
     student = _student_or_404(conn, student_id)
     goal = get_active_goal(conn, student_id)
     best_job = _first_recommended_job(conn, student_id)
-    gaps = best_job["gaps"] if best_job else []
+    role_id = goal["role_id"] if goal else "role_data_intern"
+    gaps = recalculate_student_critical_gaps(conn, student_id, role_id=role_id)
     resources = get_recommended_resources(gaps)
 
     return {
