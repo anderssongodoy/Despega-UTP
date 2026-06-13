@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     app_env: str = "local"
     database_url: str = "postgresql://postgres:postgres@localhost:5432/despega_utp"
     cors_origins: str = "http://localhost:4200,http://localhost:5173"
+    openai_api_key: str
+    openai_model: str = "gpt-5.5"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
