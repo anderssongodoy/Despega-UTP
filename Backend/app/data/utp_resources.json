@@ -1,0 +1,52 @@
+﻿[
+  {
+    "id": "res_ruta_laboral",
+    "name": "Ruta Laboral Virtual",
+    "type": "platform",
+    "target": "Estudiantes que necesitan fortalecer CV, marca personal, entrevista y herramientas de insercion laboral.",
+    "url": "https://empleabilidad.utp.edu.pe/alumnos/ruta-laboral-virtual",
+    "recommendedWhen": ["cv_gap", "interview_gap", "career_clarity_gap"]
+  },
+  {
+    "id": "res_english_discoveries",
+    "name": "English Discoveries",
+    "type": "program",
+    "target": "Estudiantes desde ciclos avanzados que necesitan fortalecer ingles laboral.",
+    "url": "https://empleabilidad.utp.edu.pe/alumnos/english-discoveries",
+    "recommendedWhen": ["english_gap"]
+  },
+  {
+    "id": "res_bolsa_utp",
+    "name": "Bolsa de Trabajo UTP",
+    "type": "platform",
+    "target": "Estudiantes y egresados listos para postular a practicas o empleos.",
+    "url": "https://empleabilidad.utp.edu.pe/alumnos/bolsa-de-trabajo",
+    "recommendedWhen": ["ready_to_apply", "viable_match"]
+  },
+  {
+    "id": "res_generacion_top",
+    "name": "Generacion TOP",
+    "type": "program",
+    "target": "Estudiantes destacados desde 7mo ciclo con alto rendimiento.",
+    "url": "https://empleabilidad.utp.edu.pe/alumnos/generacion-top",
+    "recommendedWhen": ["high_performance", "advanced_cycle"]
+  },
+  {
+    "id": "res_impulsa",
+    "name": "Impulsa",
+    "type": "program",
+    "target": "Estudiantes de 9no y 10mo ciclo con alto potencial y foco en retos empresariales.",
+    "url": "https://empleabilidad.utp.edu.pe/alumnos/impulsa",
+    "recommendedWhen": ["advanced_cycle", "challenge_ready"]
+  },
+  {
+    "id": "res_egresa_potencial",
+    "name": "Egresa con Potencial",
+    "type": "program",
+    "target": "Estudiantes de 9no y 10mo ciclo que necesitan acompanamiento de empleabilidad por carrera.",
+    "url": "https://empleabilidad.utp.edu.pe/alumnos/egresa-con-potencial",
+    "recommendedWhen": ["advanced_cycle", "needs_advisor_support"]
+  }
+]
+
+
