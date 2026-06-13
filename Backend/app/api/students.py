@@ -8,6 +8,51 @@ from app.core.json_loader import get_roles
 from app.services.matching import calculate_match, get_active_goal, get_recommended_resources
 
 
+# ---------------------------------------------------------------------------
+# Helpers internos – no exponer como endpoints
+# ---------------------------------------------------------------------------
+
+SKILL_NAME_MAP: dict[str, str] = {
+    "sk_sql": "SQL",
+    "sk_english": "Ingles",
+    "sk_interview": "Entrevista",
+    "sk_excel": "Excel",
+    "sk_powerbi": "Power BI",
+    "sk_communication": "Comunicacion",
+    "sk_python": "Python",
+    "sk_git": "Git",
+    "sk_problem_solving": "Resolucion de problemas",
+    "sk_organization": "Organizacion",
+    "sk_digital_marketing": "Marketing Digital",
+    "sk_writing": "Redaccion",
+    "sk_process_management": "Gestion de procesos",
+    "sk_critical_thinking": "Pensamiento critico",
+}
+
+
+def _skill_id_to_name(skill_id: str) -> str:
+    """Convierte un skill ID tecnico en un nombre legible."""
+    return SKILL_NAME_MAP.get(skill_id, skill_id.replace("sk_", "").replace("_", " ").title())
+
+
+def _dim_status(score: int) -> str:
+    """Convierte un score numerico al status de una dimension de diagnostico."""
+    if score >= 75:
+        return "ready"
+    if score >= 55:
+        return "partial"
+    return "critical"
+
+
+def _safe_count(conn, table: str, student_id: str) -> int:
+    """Ejecuta un COUNT(*) en la tabla dada y devuelve 0 si la tabla no existe aun."""
+    try:
+        row = fetch_one(conn, f"SELECT count(*) AS total FROM {table} WHERE student_id = %s", (student_id,))
+        return row["total"] if row else 0
+    except Exception:
+        return 0
+
+
 router = APIRouter()
 
 
@@ -164,7 +209,12 @@ def complete_onboarding(
         "onboardingCompleted": True,
         "createdEvidence": {"id": evidence_id, "title": evidence.get("title", "Evidencia inicial"), "cvBullet": cv_bullet},
         "goal": {"roleId": goal.get("targetRoleId", "role_data_intern"), "roleName": goal.get("targetRoleName", "Practicante de Analisis de Datos")},
-        "initialDiagnosis": {"readinessScore": 65, "status": "viable", "criticalGaps": self_assessment.get("perceivedGaps", [])},
+        "initialDiagnosis": {
+            "readinessScore": 65,
+            "status": "viable",
+            # criticalGaps debe ser array de nombres legibles, no IDs tecnicos
+            "criticalGaps": [_skill_id_to_name(s) for s in self_assessment.get("perceivedGaps", [])],
+        },
         "redirectTo": "/student/home",
     }
 
@@ -196,12 +246,31 @@ def get_student_dashboard(student_id: str, conn: Annotated[object, Depends(get_c
             "description": gaps[0]["message"] if gaps else "Tu perfil ya tiene una vacante viable.",
             "targetPage": "/student/profile?tab=evidence",
         },
-        "criticalGaps": gaps[:3],
-        "recommendedJobs": get_job_matches(student_id, conn)["jobs"][:3],
-        "recommendedResources": resources,
+        # CriticalGap schema: {skillName, severity, message}
+        "criticalGaps": [
+            {"skillName": g["skillName"], "severity": g["severity"], "message": g["message"]}
+            for g in gaps[:3]
+        ],
+        # RecommendedJob schema: {jobId, title, companyName, matchScore, status}
+        "recommendedJobs": [
+            {
+                "jobId": j["job_id"],
+                "title": j["title"],
+                "companyName": j["company_name"],
+                "matchScore": j["matchScore"],
+                "status": j["status"],
+            }
+            for j in get_job_matches(student_id, conn)["jobs"][:3]
+        ],
+        # RecommendedResource schema: {resourceId, name, reason}
+        "recommendedResources": [
+            {"resourceId": r["id"], "name": r["name"], "reason": r["reason"]}
+            for r in resources
+        ],
         "progress": {
             "evidences": fetch_one(conn, "SELECT count(*) AS total FROM evidences WHERE student_id = %s", (student_id,))["total"],
-            "challengesCompleted": fetch_one(conn, "SELECT count(*) AS total FROM challenge_submissions WHERE student_id = %s", (student_id,))["total"],
+            # challenge_submissions puede no existir aun – protegido contra crash
+            "challengesCompleted": _safe_count(conn, "challenge_submissions", student_id),
             "applications": fetch_one(conn, "SELECT count(*) AS total FROM applications WHERE student_id = %s", (student_id,))["total"],
             "interviewPractice": 1,
         },
@@ -229,19 +298,59 @@ def update_goal(student_id: str, payload: dict[str, Any], conn: Annotated[object
             payload.get("applicationTimeframe"),
         ),
     )
-    return {"id": goal_id, "active": True}
+    # Respuesta exacta del contrato: {studentId, roleId, message}
+    return {
+        "studentId": student_id,
+        "roleId": payload.get("roleId", "role_data_intern"),
+        "message": "Meta laboral actualizada.",
+    }
 
 
 @router.get("/students/{student_id}/diagnosis")
 def get_diagnosis(student_id: str, conn: Annotated[object, Depends(get_connection)]) -> dict:
     _student_or_404(conn, student_id)
+    goal = get_active_goal(conn, student_id)
     best_job = _first_recommended_job(conn, student_id)
+    score = best_job["matchScore"] if best_job else 0
+    gaps = best_job["gaps"] if best_job else []
+
+    # Detectar brechas especificas para ajustar dimensiones
+    has_english_gap = any(g["skillId"] == "sk_english" for g in gaps)
+    has_interview_gap = any(g["skillId"] == "sk_interview" for g in gaps)
+
+    # Dimensions: 5 dimensiones con scores deterministas basados en el match
+    dimensions = [
+        {"name": "CV", "score": max(score - 10, 0), "status": _dim_status(max(score - 10, 0))},
+        {"name": "Habilidades tecnicas", "score": score, "status": _dim_status(score)},
+        {"name": "Evidencia", "score": min(score + 10, 100), "status": _dim_status(min(score + 10, 100))},
+        {
+            "name": "Entrevista",
+            "score": 50 if has_interview_gap else min(score + 5, 100),
+            "status": "partial" if has_interview_gap else _dim_status(min(score + 5, 100)),
+        },
+        {
+            "name": "Ingles",
+            "score": 35 if has_english_gap else score,
+            "status": "critical" if has_english_gap else _dim_status(score),
+        },
+    ]
+
+    gap_names = [g["skillName"] for g in gaps[:2]]
+    if gap_names:
+        message = f"Tu perfil tiene evidencia aplicable, pero necesita reforzar {' e '.join(gap_names)} para ampliar opciones."
+    else:
+        message = "Tu perfil esta listo para postular a vacantes viables."
+
+    # Respuesta exacta del contrato Diagnosis: {studentId, role, readinessScore, dimensions, message}
     return {
         "studentId": student_id,
-        "readinessScore": best_job["matchScore"] if best_job else 0,
-        "status": best_job["status"] if best_job else "not_recommended",
-        "strengths": best_job["strengths"] if best_job else [],
-        "criticalGaps": best_job["gaps"][:4] if best_job else [],
+        "role": {
+            "roleId": goal["role_id"] if goal else "role_data_intern",
+            "roleName": goal["target_role_name"] if goal else "Practicante de Analisis de Datos",
+        },
+        "readinessScore": score,
+        "dimensions": dimensions,
+        "message": message,
     }
 
 
@@ -249,26 +358,68 @@ def get_diagnosis(student_id: str, conn: Annotated[object, Depends(get_connectio
 def get_gaps(student_id: str, conn: Annotated[object, Depends(get_connection)], jobId: str = "job_data_retail") -> dict:
     _student_or_404(conn, student_id)
     match = calculate_match(conn, student_id, jobId)
-    return {"studentId": student_id, "jobId": jobId, "matchScore": match["matchScore"], "gaps": match["gaps"], "strengths": match["strengths"]}
+    # GapItem schema: {skillId, skillName, currentLevel, requiredLevel, severity, recommendedAction}
+    # matching.py genera 'message' → lo proyectamos como 'recommendedAction' sin tocar el servicio
+    mapped_gaps = [
+        {
+            "skillId": g["skillId"],
+            "skillName": g["skillName"],
+            "currentLevel": g["currentLevel"],
+            "requiredLevel": g["requiredLevel"],
+            "severity": g["severity"],
+            "recommendedAction": g.get("message", "Practica y refuerza esta habilidad."),
+        }
+        for g in match["gaps"]
+    ]
+    can_apply = match["matchScore"] >= 65
+    return {
+        "studentId": student_id,
+        "jobId": jobId,
+        "matchScore": match["matchScore"],
+        "gaps": mapped_gaps,
+        "canApplyToday": can_apply,
+        "applyAdvice": (
+            "Puedes postular hoy. Ajusta tu CV y destaca tu experiencia mas relevante."
+            if can_apply
+            else "Refuerza tus brechas criticas antes de postular para mejorar tus chances."
+        ),
+    }
 
 
 @router.get("/students/{student_id}/action-plan")
 def get_action_plan(student_id: str, conn: Annotated[object, Depends(get_connection)]) -> dict:
-    diagnosis = get_diagnosis(student_id, conn)
-    gaps = diagnosis["criticalGaps"]
-    actions = []
+    _student_or_404(conn, student_id)
+    best_job = _first_recommended_job(conn, student_id)
+    gaps = best_job["gaps"] if best_job else []
+
+    # ActionPlan schema: {studentId, days: [ActionPlanDay]}
+    # ActionPlanDay: {day, title, type, minutes, resourceId (nullable)}
+    days: list[dict] = []
     for idx, gap in enumerate(gaps[:4], start=1):
-        actions.append(
-            {
-                "day": idx * 2,
-                "title": f"Reforzar {gap['skillName']}",
-                "description": gap["message"],
-                "targetPage": "/student/challenges" if gap["severity"] == "critical" else "/student/profile",
-            }
-        )
-    if not actions:
-        actions.append({"day": 1, "title": "Preparar postulacion", "description": "Tu perfil ya esta listo para una vacante viable.", "targetPage": "/student/opportunities"})
-    return {"studentId": student_id, "durationDays": 14, "actions": actions}
+        skill_id = gap.get("skillId", "")
+        resource_id: str | None = None
+        if skill_id == "sk_english":
+            resource_id = "res_english_discoveries"
+        elif gap["severity"] == "critical":
+            resource_id = "res_ruta_laboral"
+        days.append({
+            "day": idx * 2 - 1,
+            "title": f"Reforzar {gap['skillName']}",
+            "type": "utp_resource" if resource_id else "skill",
+            "minutes": 45,
+            "resourceId": resource_id,
+        })
+
+    if not days:
+        days.append({
+            "day": 1,
+            "title": "Preparar postulacion",
+            "type": "cv",
+            "minutes": 45,
+            "resourceId": "res_ruta_laboral",
+        })
+
+    return {"studentId": student_id, "days": days}
 
 
 @router.get("/students/{student_id}/evidences")
