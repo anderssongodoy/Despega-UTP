@@ -1,11 +1,12 @@
 import { apiClient } from "../../shared/api/http";
+import type { ChallengeDetail, ChallengesResponse } from "../../shared/api/types";
 
 export function getChallenges(roleId = "role_data_intern") {
-  return apiClient<{ challenges: unknown[] }>(`/challenges?roleId=${encodeURIComponent(roleId)}`);
+  return apiClient<ChallengesResponse>(`/challenges?roleId=${encodeURIComponent(roleId)}`);
 }
 
 export function getChallenge(challengeId: string) {
-  return apiClient(`/challenges/${challengeId}`);
+  return apiClient<ChallengeDetail>(`/challenges/${challengeId}`);
 }
 
 export function submitChallenge(challengeId: string, payload: unknown) {
