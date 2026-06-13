@@ -102,3 +102,9 @@ La arquitectura es intencionalmente simple para 2 dias:
 - Sin SQLAlchemy/Alembic para evitar curva extra durante la hackathon.
 
 Si cambian campos de respuesta, actualicen `openapi.yaml`.
+
+Guia de trabajo para desarrolladores:
+
+```text
+GUIA_TRABAJO_BACKEND.md
+```
