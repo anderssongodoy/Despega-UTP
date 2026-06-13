@@ -10,7 +10,7 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 @lru_cache
 def load_json(filename: str) -> Any:
     path = DATA_DIR / filename
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def get_roles() -> list[dict]:
