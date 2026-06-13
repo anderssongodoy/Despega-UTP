@@ -1,6 +1,11 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
+# ORM (usado por app/routers/ con SQLAlchemy)
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+# psycopg v3 (usado por app/api/ y app/core/db.py)
 psycopg[binary]==3.2.3
+pydantic>=2.0.0
 pydantic-settings==2.7.1
 python-dotenv==1.0.1
 openai==1.59.5
