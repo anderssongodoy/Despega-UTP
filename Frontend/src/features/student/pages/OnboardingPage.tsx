@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
 import { completeOnboarding } from "../student.api";
-import { appRoutes } from "../../../routes";
+import { appRoutes } from "../../../shared/config/routes";
 import { Button } from "../../../shared/components/Button";
 import { Card } from "../../../shared/components/Card";
 

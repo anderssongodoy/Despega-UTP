@@ -12,20 +12,7 @@ import { StudentChallengesPage } from "./features/student/pages/StudentChallenge
 import { CompanyDashboardPage } from "./features/company/pages/CompanyDashboardPage";
 import { CompanyTalentPage } from "./features/company/pages/CompanyTalentPage";
 import { AdvisorImpactPage } from "./features/advisor/pages/AdvisorImpactPage";
-
-export const appRoutes = {
-  landing: "/",
-  login: "/login",
-  onboarding: "/onboarding",
-  studentHome: "/student/home",
-  studentRoute: "/student/route",
-  studentProfile: "/student/profile",
-  studentOpportunities: "/student/opportunities",
-  studentChallenges: "/student/challenges",
-  companyDashboard: "/company/dashboard",
-  companyTalent: "/company/talent",
-  advisorImpact: "/advisor/impact",
-} as const;
+import { appRoutes } from "./shared/config/routes";
 
 export const router = createBrowserRouter([
   { path: appRoutes.landing, element: <LandingPage /> },

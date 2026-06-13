@@ -2,7 +2,7 @@ import { Briefcase, Building2, ChartNoAxesCombined, Home, Route, Trophy, UserRou
 import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
-import { appRoutes } from "../../routes";
+import { appRoutes } from "../config/routes";
 
 type NavItem = {
   to: string;

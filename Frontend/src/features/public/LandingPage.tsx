@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, Building2, GraduationCap, LineChart } from "lucide-react";
 
-import { appRoutes } from "../../routes";
+import { appRoutes } from "../../shared/config/routes";
 import { Button } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
 
