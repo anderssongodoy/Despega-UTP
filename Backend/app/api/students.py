@@ -1,7 +1,7 @@
 from typing import Annotated, Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.db import execute, fetch_all, fetch_one, get_connection
 from app.core.json_loader import get_roles
@@ -287,6 +287,115 @@ def _first_recommended_job(conn, student_id: str) -> dict | None:
 @router.get("/roles")
 def list_roles() -> dict:
     return {"roles": get_roles()}
+
+
+@router.get("/critical-gaps/{skillId}/students")
+def list_students_by_critical_gap(
+    skillId: str,
+    conn: Annotated[object, Depends(get_connection)],
+    status: str = Query("open", pattern="^(open|resolved)$"),
+    source: str = Query("all", pattern="^(role|job|all)$"),
+    roleId: str | None = None,
+    jobId: str | None = None,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> dict:
+    skill = fetch_one(conn, "SELECT name FROM skills WHERE id = %s", (skillId,))
+    skill_name = skill["name"] if skill else _skill_id_to_name(skillId)
+
+    filters = ["scg.skill_id = %s", "scg.status = %s"]
+    params: list[Any] = [skillId, status]
+    if source != "all":
+        filters.append("scg.source = %s")
+        params.append(source)
+    if roleId:
+        filters.append("scg.role_id = %s")
+        params.append(roleId)
+    if jobId:
+        filters.append("scg.job_id = %s")
+        params.append(jobId)
+    where_sql = " AND ".join(filters)
+
+    total_row = fetch_one(
+        conn,
+        f"""
+        SELECT count(*) AS total
+        FROM student_critical_gaps scg
+        WHERE {where_sql}
+        """,
+        tuple(params),
+    )
+
+    rows = fetch_all(
+        conn,
+        f"""
+        SELECT
+          scg.student_id,
+          u.name AS full_name,
+          u.email,
+          s.career,
+          s.cycle,
+          scg.role_id,
+          scg.job_id,
+          scg.skill_id,
+          sk.name AS skill_name,
+          scg.severity,
+          scg.status,
+          scg.source,
+          COALESCE(ss.level, 0) AS current_level,
+          COALESCE(rsr.required_level, jr.required_level, 0) AS required_level
+        FROM student_critical_gaps scg
+        JOIN students s ON s.id = scg.student_id
+        JOIN users u ON u.id = s.id
+        JOIN skills sk ON sk.id = scg.skill_id
+        LEFT JOIN student_skills ss
+          ON ss.student_id = scg.student_id
+         AND ss.skill_id = scg.skill_id
+        LEFT JOIN role_skill_requirements rsr
+          ON scg.source = 'role'
+         AND rsr.role_id = scg.role_id
+         AND rsr.skill_id = scg.skill_id
+        LEFT JOIN job_requirements jr
+          ON scg.source = 'job'
+         AND jr.job_id = scg.job_id
+         AND jr.skill_id = scg.skill_id
+        WHERE {where_sql}
+        ORDER BY
+          CASE scg.severity WHEN 'critical' THEN 0 ELSE 1 END,
+          u.name,
+          CASE scg.source WHEN 'role' THEN 0 WHEN 'job' THEN 1 ELSE 2 END,
+          scg.job_id NULLS FIRST
+        LIMIT %s OFFSET %s
+        """,
+        tuple([*params, limit, offset]),
+    )
+
+    return {
+        "skillId": skillId,
+        "skillName": skill_name,
+        "status": status,
+        "source": source,
+        "totalAffected": total_row["total"] if total_row else 0,
+        "students": [
+            {
+                "studentId": row["student_id"],
+                "fullName": row["full_name"],
+                "email": row["email"],
+                "career": row["career"],
+                "cycle": row["cycle"],
+                "roleId": row["role_id"],
+                "jobId": row["job_id"],
+                "skillId": row["skill_id"],
+                "skillName": row["skill_name"],
+                "severity": row["severity"],
+                "status": row["status"],
+                "source": row["source"],
+                "currentLevel": row["current_level"],
+                "requiredLevel": row["required_level"],
+            }
+            for row in rows
+        ],
+    }
 
 
 @router.post("/students/{student_id}/onboarding")
