@@ -53,6 +53,200 @@ def _safe_count(conn, table: str, student_id: str) -> int:
         return 0
 
 
+def _gap_recommended_action(skill_name: str, current_level: int, required_level: int) -> str:
+    return f"Refuerza {skill_name}: estas en nivel {current_level} y el objetivo requiere nivel {required_level}."
+
+
+def _role_match_score(conn, student_id: str, role_id: str) -> int:
+    row = fetch_one(
+        conn,
+        """
+        SELECT COALESCE(
+          ROUND(AVG(
+            CASE
+              WHEN rsr.required_level = 0 THEN 100
+              ELSE LEAST(COALESCE(ss.level, 0)::numeric / rsr.required_level, 1) * 100
+            END
+          )),
+          0
+        )::int AS score
+        FROM role_skill_requirements rsr
+        LEFT JOIN student_skills ss
+          ON ss.student_id = %s
+         AND ss.skill_id = rsr.skill_id
+        WHERE rsr.role_id = %s
+        """,
+        (student_id, role_id),
+    )
+    return row["score"] if row else 0
+
+
+def recalculate_student_critical_gaps(
+    conn,
+    student_id: str,
+    role_id: str | None = None,
+    job_id: str | None = None,
+) -> list[dict]:
+    current_rows = fetch_all(
+        conn,
+        "SELECT skill_id, level FROM student_skills WHERE student_id = %s",
+        (student_id,),
+    )
+    current_levels = {row["skill_id"]: row["level"] for row in current_rows}
+
+    if job_id:
+        requirements = fetch_all(
+            conn,
+            """
+            SELECT
+              j.role_id,
+              jr.job_id,
+              jr.skill_id,
+              s.name AS skill_name,
+              jr.required_level,
+              jr.importance AS priority,
+              NULL::text AS reason
+            FROM job_requirements jr
+            JOIN jobs j ON j.id = jr.job_id
+            JOIN skills s ON s.id = jr.skill_id
+            WHERE jr.job_id = %s
+            """,
+            (job_id,),
+        )
+        source = "job"
+        if requirements and not role_id:
+            role_id = requirements[0]["role_id"]
+    else:
+        if not role_id:
+            goal = get_active_goal(conn, student_id)
+            role_id = goal["role_id"] if goal else "role_data_intern"
+        requirements = fetch_all(
+            conn,
+            """
+            SELECT
+              rsr.role_id,
+              NULL::varchar AS job_id,
+              rsr.skill_id,
+              s.name AS skill_name,
+              rsr.required_level,
+              rsr.priority,
+              rsr.reason
+            FROM role_skill_requirements rsr
+            JOIN skills s ON s.id = rsr.skill_id
+            WHERE rsr.role_id = %s
+            """,
+            (role_id,),
+        )
+        source = "role"
+
+    gaps: list[dict] = []
+    open_skill_ids: list[str] = []
+
+    for req in requirements:
+        current_level = current_levels.get(req["skill_id"], 0)
+        required_level = req["required_level"]
+        if current_level >= required_level:
+            continue
+
+        severity = "critical" if req["priority"] == "critical" else "partial"
+        recommended_action = req["reason"] or _gap_recommended_action(req["skill_name"], current_level, required_level)
+        gap = {
+            "skillId": req["skill_id"],
+            "skillName": req["skill_name"],
+            "currentLevel": current_level,
+            "requiredLevel": required_level,
+            "severity": severity,
+            "recommendedAction": recommended_action,
+            "message": recommended_action,
+        }
+        gaps.append(gap)
+        open_skill_ids.append(req["skill_id"])
+
+        gap_id = f"scg_{student_id}_{source}_{job_id or role_id}_{req['skill_id']}"
+        if source == "job":
+            execute(
+                conn,
+                """
+                INSERT INTO student_critical_gaps
+                  (id, student_id, role_id, job_id, skill_id, severity, source, reason, status, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, 'job', %s, 'open', now())
+                ON CONFLICT (student_id, job_id, skill_id)
+                  WHERE source = 'job' AND job_id IS NOT NULL
+                DO UPDATE SET
+                  role_id = EXCLUDED.role_id,
+                  severity = EXCLUDED.severity,
+                  reason = EXCLUDED.reason,
+                  status = 'open',
+                  updated_at = now()
+                """,
+                (
+                    gap_id,
+                    student_id,
+                    role_id,
+                    job_id,
+                    req["skill_id"],
+                    severity,
+                    recommended_action,
+                ),
+            )
+        else:
+            execute(
+                conn,
+                """
+                INSERT INTO student_critical_gaps
+                  (id, student_id, role_id, job_id, skill_id, severity, source, reason, status, updated_at)
+                VALUES (%s, %s, %s, NULL, %s, %s, 'role', %s, 'open', now())
+                ON CONFLICT (student_id, role_id, skill_id)
+                  WHERE source = 'role' AND role_id IS NOT NULL
+                DO UPDATE SET
+                  severity = EXCLUDED.severity,
+                  reason = EXCLUDED.reason,
+                  status = 'open',
+                  updated_at = now()
+                """,
+                (
+                    gap_id,
+                    student_id,
+                    role_id,
+                    req["skill_id"],
+                    severity,
+                    recommended_action,
+                ),
+            )
+
+    if source == "job":
+        execute(
+            conn,
+            """
+            UPDATE student_critical_gaps
+            SET status = 'resolved', updated_at = now()
+            WHERE student_id = %s
+              AND source = 'job'
+              AND job_id = %s
+              AND status = 'open'
+              AND skill_id <> ALL(%s::varchar[])
+            """,
+            (student_id, job_id, open_skill_ids),
+        )
+    else:
+        execute(
+            conn,
+            """
+            UPDATE student_critical_gaps
+            SET status = 'resolved', updated_at = now()
+            WHERE student_id = %s
+              AND source = 'role'
+              AND role_id = %s
+              AND status = 'open'
+              AND skill_id <> ALL(%s::varchar[])
+            """,
+            (student_id, role_id, open_skill_ids),
+        )
+
+    gaps.sort(key=lambda item: (0 if item["severity"] == "critical" else 1, item["skillName"]))
+    return gaps
+
+
 router = APIRouter()
 
 
@@ -109,6 +303,8 @@ def complete_onboarding(
     goal = payload.get("employmentGoal", {})
     evidence = payload.get("initialEvidence", {})
     self_assessment = payload.get("selfAssessment", {})
+    goal_role_id = goal.get("targetRoleId", "role_data_intern")
+    goal_role_name = goal.get("targetRoleName", "Practicante de Analisis de Datos")
 
     execute(
         conn,
@@ -148,8 +344,8 @@ def complete_onboarding(
         (
             f"goal_{student_id}_{uuid4().hex[:8]}",
             student_id,
-            goal.get("targetRoleId", "role_data_intern"),
-            goal.get("targetRoleName", "Practicante de Analisis de Datos"),
+            goal_role_id,
+            goal_role_name,
             goal.get("availability"),
             goal.get("preferredWorkMode"),
             goal.get("applicationTimeframe"),
@@ -166,6 +362,8 @@ def complete_onboarding(
             """,
             (f"ss_{student_id}_{skill_id}", student_id, skill_id),
         )
+
+    critical_gaps = recalculate_student_critical_gaps(conn, student_id, role_id=goal_role_id)
 
     evidence_id = f"ev_{student_id}_{uuid4().hex[:8]}"
     cv_bullet = (
@@ -208,12 +406,12 @@ def complete_onboarding(
         "studentId": student_id,
         "onboardingCompleted": True,
         "createdEvidence": {"id": evidence_id, "title": evidence.get("title", "Evidencia inicial"), "cvBullet": cv_bullet},
-        "goal": {"roleId": goal.get("targetRoleId", "role_data_intern"), "roleName": goal.get("targetRoleName", "Practicante de Analisis de Datos")},
+        "goal": {"roleId": goal_role_id, "roleName": goal_role_name},
         "initialDiagnosis": {
             "readinessScore": 65,
             "status": "viable",
             # criticalGaps debe ser array de nombres legibles, no IDs tecnicos
-            "criticalGaps": [_skill_id_to_name(s) for s in self_assessment.get("perceivedGaps", [])],
+            "criticalGaps": [g["skillName"] for g in critical_gaps],
         },
         "redirectTo": "/student/home",
     }
@@ -282,6 +480,7 @@ def update_goal(student_id: str, payload: dict[str, Any], conn: Annotated[object
     _student_or_404(conn, student_id)
     execute(conn, "UPDATE student_goals SET active = false WHERE student_id = %s", (student_id,))
     goal_id = f"goal_{student_id}_{uuid4().hex[:8]}"
+    role_id = payload.get("roleId", "role_data_intern")
     execute(
         conn,
         """
@@ -291,17 +490,18 @@ def update_goal(student_id: str, payload: dict[str, Any], conn: Annotated[object
         (
             goal_id,
             student_id,
-            payload.get("roleId", "role_data_intern"),
+            role_id,
             payload.get("targetRoleName", "Practicante de Analisis de Datos"),
             payload.get("availability"),
             payload.get("preferredWorkMode"),
             payload.get("applicationTimeframe"),
         ),
     )
+    recalculate_student_critical_gaps(conn, student_id, role_id=role_id)
     # Respuesta exacta del contrato: {studentId, roleId, message}
     return {
         "studentId": student_id,
-        "roleId": payload.get("roleId", "role_data_intern"),
+        "roleId": role_id,
         "message": "Meta laboral actualizada.",
     }
 
@@ -310,9 +510,9 @@ def update_goal(student_id: str, payload: dict[str, Any], conn: Annotated[object
 def get_diagnosis(student_id: str, conn: Annotated[object, Depends(get_connection)]) -> dict:
     _student_or_404(conn, student_id)
     goal = get_active_goal(conn, student_id)
-    best_job = _first_recommended_job(conn, student_id)
-    score = best_job["matchScore"] if best_job else 0
-    gaps = best_job["gaps"] if best_job else []
+    role_id = goal["role_id"] if goal else "role_data_intern"
+    score = _role_match_score(conn, student_id, role_id)
+    gaps = recalculate_student_critical_gaps(conn, student_id, role_id=role_id)
 
     # Detectar brechas especificas para ajustar dimensiones
     has_english_gap = any(g["skillId"] == "sk_english" for g in gaps)
@@ -355,11 +555,17 @@ def get_diagnosis(student_id: str, conn: Annotated[object, Depends(get_connectio
 
 
 @router.get("/students/{student_id}/gaps")
-def get_gaps(student_id: str, conn: Annotated[object, Depends(get_connection)], jobId: str = "job_data_retail") -> dict:
+def get_gaps(student_id: str, conn: Annotated[object, Depends(get_connection)], jobId: str | None = None) -> dict:
     _student_or_404(conn, student_id)
-    match = calculate_match(conn, student_id, jobId)
+    goal = get_active_goal(conn, student_id)
+    role_id = goal["role_id"] if goal else "role_data_intern"
+    if jobId:
+        match_score = calculate_match(conn, student_id, jobId)["matchScore"]
+        gaps = recalculate_student_critical_gaps(conn, student_id, role_id=role_id, job_id=jobId)
+    else:
+        match_score = _role_match_score(conn, student_id, role_id)
+        gaps = recalculate_student_critical_gaps(conn, student_id, role_id=role_id)
     # GapItem schema: {skillId, skillName, currentLevel, requiredLevel, severity, recommendedAction}
-    # matching.py genera 'message' → lo proyectamos como 'recommendedAction' sin tocar el servicio
     mapped_gaps = [
         {
             "skillId": g["skillId"],
@@ -367,15 +573,15 @@ def get_gaps(student_id: str, conn: Annotated[object, Depends(get_connection)], 
             "currentLevel": g["currentLevel"],
             "requiredLevel": g["requiredLevel"],
             "severity": g["severity"],
-            "recommendedAction": g.get("message", "Practica y refuerza esta habilidad."),
+            "recommendedAction": g["recommendedAction"],
         }
-        for g in match["gaps"]
+        for g in gaps
     ]
-    can_apply = match["matchScore"] >= 65
+    can_apply = match_score >= 65
     return {
         "studentId": student_id,
         "jobId": jobId,
-        "matchScore": match["matchScore"],
+        "matchScore": match_score,
         "gaps": mapped_gaps,
         "canApplyToday": can_apply,
         "applyAdvice": (
@@ -389,8 +595,9 @@ def get_gaps(student_id: str, conn: Annotated[object, Depends(get_connection)], 
 @router.get("/students/{student_id}/action-plan")
 def get_action_plan(student_id: str, conn: Annotated[object, Depends(get_connection)]) -> dict:
     _student_or_404(conn, student_id)
-    best_job = _first_recommended_job(conn, student_id)
-    gaps = best_job["gaps"] if best_job else []
+    goal = get_active_goal(conn, student_id)
+    role_id = goal["role_id"] if goal else "role_data_intern"
+    gaps = recalculate_student_critical_gaps(conn, student_id, role_id=role_id)
 
     # ActionPlan schema: {studentId, days: [ActionPlanDay]}
     # ActionPlanDay: {day, title, type, minutes, resourceId (nullable)}
