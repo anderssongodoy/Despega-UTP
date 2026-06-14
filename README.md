@@ -24,6 +24,7 @@ Despega-UTP/
 ├── Backend/                 # API FastAPI
 │   ├── app/                 # código (api/, services/, core/, data/*.json)
 │   ├── despega_utp_demo.sql # 👈 script ÚNICO: crea esquema + carga TODA la data
+│   ├── setup_db.py          # crea la BD y carga el SQL (sin psql ni pgAdmin)
 │   ├── requirements.txt
 │   └── .env.example
 ├── Frontend/                # SPA React
@@ -51,39 +52,18 @@ El jurado necesita instalar (una sola vez):
 
 ## Puesta en marcha (paso a paso)
 
-### 1) Base de datos — cargar `despega_utp_demo.sql`
-
-Este único script **crea todas las tablas y carga todos los datos de demo** (estudiantes, empresas, vacantes, skills, brechas, evidencias y usuarios de prueba). Es idempotente: puedes correrlo varias veces sin duplicar nada.
-
-**Opción A — con `psql` (terminal):**
-```bash
-# Crea la base
-psql -U postgres -c "CREATE DATABASE despega_utp;"
-# Carga el script
-psql -U postgres -d despega_utp -f Backend/despega_utp_demo.sql
-```
-
-**Opción B — con pgAdmin (interfaz gráfica):**
-1. Crea una base llamada `despega_utp`.
-2. Clic derecho sobre la base → *Query Tool*.
-3. Abre `Backend/despega_utp_demo.sql`, pégalo y ejecútalo (▶).
-
-### 2) Backend (FastAPI)
+### 1) Backend — entorno e instalación
 
 ```bash
 cd Backend
 
-# 1) Crea el entorno virtual con Python 3.12 y actívalo
+# Crea el entorno virtual con Python 3.12 y actívalo
 python -m venv .venv
 .venv\Scripts\activate            # Windows
 # source .venv/bin/activate       # macOS/Linux
 
-# 2) Instala dependencias
+# Instala dependencias
 pip install -r requirements.txt
-
-# 3) Arranca la API
-uvicorn app.main:app --reload --port 8000
-#  (alternativa equivalente)  python run.py
 ```
 
 **Configura `Backend/.env`:** el proyecto ya incluye un `.env`. Edita solo **`DATABASE_URL`** con el usuario/clave/puerto de TU PostgreSQL, por ejemplo:
@@ -92,11 +72,37 @@ uvicorn app.main:app --reload --port 8000
 DATABASE_URL=postgresql://postgres:TU_CLAVE@localhost:5432/despega_utp
 ```
 
-> La `OPENAI_API_KEY` ya viene configurada en ese `.env`. Si por algún motivo no existiera el archivo, crea uno copiando `Backend/.env.example`.
+> La `OPENAI_API_KEY` ya viene configurada en ese `.env`. Si no existiera, cópialo de `Backend/.env.example`.
 
-API disponible en `http://localhost:8000` · docs interactivas en `http://localhost:8000/docs`.
+### 2) Base de datos — crear y cargar todo
 
-### 3) Frontend (React)
+El script `despega_utp_demo.sql` **crea todas las tablas y carga todos los datos de demo** (estudiantes, empresas, vacantes, skills, brechas, evidencias y usuarios de prueba). Es idempotente: puedes correrlo varias veces sin duplicar nada.
+
+**Opción A — recomendada, SIN psql ni pgAdmin** (usa el venv del paso 1):
+```bash
+# desde Backend, con el venv activado
+python setup_db.py
+```
+Crea la base `despega_utp` (si no existe) y carga todos los datos automáticamente, leyendo la conexión desde `.env`.
+
+**Opción B — con `psql`:**
+```bash
+psql -U postgres -c "CREATE DATABASE despega_utp;"
+psql -U postgres -d despega_utp -f despega_utp_demo.sql
+```
+
+**Opción C — con pgAdmin:** crea la base `despega_utp`, abre *Query Tool*, carga `Backend/despega_utp_demo.sql` y ejecútalo (▶).
+
+### 3) Arranca el backend
+
+```bash
+# desde Backend, con el venv activado
+uvicorn app.main:app --reload --port 8000
+#  (alternativa equivalente)  python run.py
+```
+API en `http://localhost:8000` · docs interactivas en `http://localhost:8000/docs`.
+
+### 4) Frontend (React)
 
 ```bash
 cd Frontend

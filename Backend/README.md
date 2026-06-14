@@ -53,14 +53,25 @@ Edita `.env` y ajusta `DATABASE_URL` con tu usuario/clave de PostgreSQL.
 
 ## Base de datos
 
-Crea la base y carga el **script único** (crea el esquema y toda la data de demo; es idempotente):
+El script `despega_utp_demo.sql` crea el esquema y carga toda la data de demo (idempotente).
+
+**Opción recomendada — SIN psql ni pgAdmin** (con el venv activado y `.env` configurado):
 
 ```bash
+python setup_db.py
+```
+
+Crea la base `despega_utp` si no existe y carga todos los datos leyendo la conexión desde `.env`.
+
+**Alternativas:**
+
+```bash
+# con psql
 psql -U postgres -c "CREATE DATABASE despega_utp;"
 psql -U postgres -d despega_utp -f despega_utp_demo.sql
 ```
 
-(También puedes correrlo desde pgAdmin con el *Query Tool*.)
+O desde pgAdmin con el *Query Tool* cargando `despega_utp_demo.sql`.
 
 ## Ejecutar
 
