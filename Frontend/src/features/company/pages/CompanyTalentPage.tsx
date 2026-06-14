@@ -70,15 +70,17 @@ function CandidateDetail({ studentId, jobId }: { studentId: string; jobId: strin
         </div>
       </div>
 
-      <div className="content-grid">
+      <div className="stack">
         <div className="stack compact">
           <span className="list-row" style={{ gap: "0.4rem" }}>
             <CheckCircle2 size={15} style={{ color: "var(--color-teal)" }} /> <strong>Por qué encaja</strong>
           </span>
           {strengths.length > 0 ? (
-            <div className="trust-strip">
+            <div className="trust-strip" style={{ gap: "0.4rem" }}>
               {strengths.map((strength) => (
-                <span key={strength}>{strength}</span>
+                <span key={strength} className="chip">
+                  {strength}
+                </span>
               ))}
             </div>
           ) : (
@@ -178,9 +180,11 @@ function CandidatesPanel({ jobId }: { jobId: string }) {
               <ScoreRing score={candidate.matchScore} />
             </div>
             {candidate.strengths && candidate.strengths.length > 0 ? (
-              <div className="trust-strip" style={{ marginTop: "0.7rem" }}>
+              <div className="trust-strip" style={{ marginTop: "0.7rem", gap: "0.4rem" }}>
                 {candidate.strengths.slice(0, 3).map((strength) => (
-                  <span key={strength}>{strength}</span>
+                  <span key={strength} className="chip">
+                    {strength}
+                  </span>
                 ))}
               </div>
             ) : null}
