@@ -40,10 +40,12 @@ Despega-UTP/
 El jurado necesita instalar (una sola vez):
 
 1. **PostgreSQL 14+** — https://www.postgresql.org/download/
-2. **Python 3.11+** (probado en 3.12) — https://www.python.org/downloads/
+2. **Python 3.12** — https://www.python.org/downloads/
+   - Recomendado **3.12** (probado en 3.12.7). Sirve también 3.11.
+   - ⚠️ Evita 3.13: algunas librerías (p. ej. PyMuPDF) aún no traen wheels para esa versión y la instalación puede fallar.
 3. **Node.js 18+** (incluye npm) — https://nodejs.org/
 
-> No se necesita ninguna API key para que la app funcione. La key de OpenAI es **opcional** y solo habilita el análisis de CV y el coach de pitch.
+> La key de OpenAI solo habilita el análisis de CV (PDF) y el coach de pitch (audio). Sin ella el resto de la app funciona igual.
 
 ---
 
@@ -70,19 +72,28 @@ psql -U postgres -d despega_utp -f Backend/despega_utp_demo.sql
 
 ```bash
 cd Backend
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS/Linux:
-# source .venv/bin/activate
 
+# 1) Crea el entorno virtual con Python 3.12 y actívalo
+python -m venv .venv
+.venv\Scripts\activate            # Windows
+# source .venv/bin/activate       # macOS/Linux
+
+# 2) Instala dependencias
 pip install -r requirements.txt
 
-copy .env.example .env        # Windows  (macOS/Linux: cp .env.example .env)
-# Edita .env y ajusta DATABASE_URL con tu usuario/clave de PostgreSQL.
-
+# 3) Arranca la API
 uvicorn app.main:app --reload --port 8000
+#  (alternativa equivalente)  python run.py
 ```
+
+**Configura `Backend/.env`:** el proyecto ya incluye un `.env`. Edita solo **`DATABASE_URL`** con el usuario/clave/puerto de TU PostgreSQL, por ejemplo:
+
+```
+DATABASE_URL=postgresql://postgres:TU_CLAVE@localhost:5432/despega_utp
+```
+
+> La `OPENAI_API_KEY` ya viene configurada en ese `.env`. Si por algún motivo no existiera el archivo, crea uno copiando `Backend/.env.example`.
+
 API disponible en `http://localhost:8000` · docs interactivas en `http://localhost:8000/docs`.
 
 ### 3) Frontend (React)
@@ -121,16 +132,16 @@ Contraseña universal para todos: **`demo123`**
 
 ---
 
-## Empaquetar el proyecto (RAR/ZIP limpio)
+## Empaquetar el proyecto (RAR/ZIP)
 
-Para enviar solo el proyecto, **no incluyas**: `Backend/.venv`, `Frontend/node_modules`, ni los `.env` reales.
+El entregable es un `.zip`/`.rar` con las carpetas **`Backend/`** y **`Frontend/`** + este **`README.md`**.
 
-La forma más limpia (excluye todo lo anterior automáticamente):
-```bash
-git archive -o despega-utp.zip HEAD
-```
+**Antes de comprimir, elimina (pesan mucho y se reinstalan con los comandos de arriba):**
 
-Si lo comprimes a mano, elimina/excluye antes: `.venv/`, `node_modules/`, `*.env` (deja los `*.env.example`).
+- `Backend/.venv/`
+- `Frontend/node_modules/`
+
+> Sí se incluye `Backend/.env` (con la `OPENAI_API_KEY`). El jurado solo debe editar `DATABASE_URL`.
 
 ---
 

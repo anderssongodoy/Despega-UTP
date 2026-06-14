@@ -66,6 +66,8 @@ psql -U postgres -d despega_utp -f despega_utp_demo.sql
 
 ```bash
 uvicorn app.main:app --reload --port 8000
+# alternativa equivalente:
+python run.py
 ```
 
 - Docs interactivas (Swagger): `http://localhost:8000/docs`
