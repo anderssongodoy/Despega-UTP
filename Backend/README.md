@@ -36,7 +36,7 @@ requirements.txt
 ## Instalación
 
 ```bash
-python -m venv .venv
+py -3.12 -m venv .venv            # Windows (fuerza la 3.12; en macOS/Linux: python3.12 -m venv .venv)
 .venv\Scripts\activate            # Windows  (macOS/Linux: source .venv/bin/activate)
 pip install -r requirements.txt
 copy .env.example .env            # macOS/Linux: cp .env.example .env
