@@ -16,8 +16,10 @@ class Settings(BaseSettings):
 
     # CORS — lista separada por comas
     cors_origins: str = "http://localhost:4200,http://localhost:5173"
-    openai_api_key: str
-    openai_model: str = "gpt-5.5"
+    # Opcional: sin key el backend arranca igual; solo las funciones de IA
+    # (análisis de CV y coach de pitch) quedan deshabilitadas.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
