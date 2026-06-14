@@ -57,9 +57,11 @@ El jurado necesita instalar (una sola vez):
 ```bash
 cd Backend
 
-# Crea el entorno virtual con Python 3.12 y actívalo
-py -3.12 -m venv .venv            # Windows (fuerza la 3.12 con el lanzador py)
-# python3.12 -m venv .venv        # macOS/Linux
+# Crea el entorno virtual (necesitas Python 3.12) y actívalo
+python -m venv .venv              # opción normal
+# Si da error o tu Python por defecto NO es 3.12, fuerza la versión:
+#   py -3.12 -m venv .venv        # Windows
+#   python3.12 -m venv .venv      # macOS/Linux
 .venv\Scripts\activate            # Windows
 # source .venv/bin/activate       # macOS/Linux
 
