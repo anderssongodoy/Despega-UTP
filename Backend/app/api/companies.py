@@ -15,19 +15,33 @@ def get_company_dashboard(company_id: str, conn: Annotated[object, Depends(get_c
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     jobs = get_company_jobs(company_id, conn)["jobs"]
-    candidates = []
+    all_candidates = []
+    preview = []
     for job in jobs:
-        candidates.extend(get_job_candidates(company_id, job["jobId"], conn)["candidates"][:2])
-    avg_match = round(sum(c["matchScore"] for c in candidates) / len(candidates)) if candidates else 0
+        job_candidates = get_job_candidates(company_id, job["jobId"], conn)["candidates"]
+        all_candidates.extend(job_candidates)
+        preview.extend(job_candidates[:2])
+
+    avg_match = round(sum(c["matchScore"] for c in preview) / len(preview)) if preview else 0
+
+    # Brechas mas frecuentes calculadas a partir de las brechas reales de los candidatos.
+    gap_counts: dict[str, int] = {}
+    for candidate in all_candidates:
+        for gap in candidate.get("gaps", []):
+            name = gap.get("skillName")
+            if name:
+                gap_counts[name] = gap_counts.get(name, 0) + 1
+    top_gaps = [name for name, _ in sorted(gap_counts.items(), key=lambda kv: kv[1], reverse=True)][:5]
+
     return {
         "company": company,
         "activeJobs": len(jobs),
-        "recommendedCandidates": len(candidates),
+        "recommendedCandidates": len(preview),
         "averageMatch": avg_match,
-        "estimatedHoursSaved": len(candidates) * 2,
-        "topGaps": ["SQL", "Ingles", "Comunicacion tecnica"],
+        "estimatedHoursSaved": len(preview) * 2,
+        "topGaps": top_gaps,
         "jobs": jobs,
-        "candidatePreview": candidates[:6],
+        "candidatePreview": preview[:6],
     }
 
 

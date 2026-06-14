@@ -189,6 +189,21 @@ export type CompanyDashboard = {
 
 export type CandidatesResponse = { jobId: string; candidates: Candidate[] };
 
+export type CandidateDetail = {
+  candidate: {
+    id: string;
+    name: string;
+    email?: string;
+    career?: string;
+    cycle?: number;
+    modality?: string;
+    cv_status?: string;
+  };
+  jobId: string;
+  match: { matchScore: number; status: MatchStatus; gaps?: SkillGap[]; strengths?: string[] };
+  evidences: Array<{ id: string; title: string; cv_bullet?: string }>;
+};
+
 export type AdvisorImpact = {
   totals: { students: number; evidences: number; applications: number; companies: number; activeJobs: number };
   byCareer: Array<{ career: string; students: number }>;
