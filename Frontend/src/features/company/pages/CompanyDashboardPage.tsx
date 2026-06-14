@@ -1,6 +1,7 @@
 import { Briefcase, Building2, UserRound } from "lucide-react";
 
 import { getCompanyDashboard, getCompanyJobs } from "../company.api";
+import { jobStatusEs } from "../../../shared/config/labels";
 import { useApi } from "../../../shared/api/useApi";
 import { Card } from "../../../shared/components/Card";
 import { ErrorState } from "../../../shared/components/ErrorState";
@@ -109,7 +110,7 @@ export function CompanyDashboardPage() {
               <div key={job.jobId} className="evidence-item">
                 <div className="row-between">
                   <strong>{job.title}</strong>
-                  <span className="chip">{job.status}</span>
+                  <span className="chip">{jobStatusEs(job.status)}</span>
                 </div>
                 <p className="muted" style={{ margin: 0 }}>
                   {job.recommendedCandidates ?? 0} candidatos · match promedio {job.averageMatch ?? 0}%

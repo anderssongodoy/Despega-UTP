@@ -212,6 +212,15 @@ export type Application = {
 export type ApplicationsResponse = { applications: Application[] };
 
 export type Passport = {
+  student?: {
+    id: string;
+    name?: string;
+    email?: string;
+    career?: string;
+    cycle?: number;
+    modality?: string;
+    [key: string]: unknown;
+  };
   skills: Array<{ id: string; name: string; level: number }>;
   evidences: Array<{ id: string; title: string; cv_bullet?: string }>;
 };
@@ -230,3 +239,75 @@ export type RolesResponse = { roles: Role[] };
 export type AuthUser = { id: string; name: string; email: string; role: UserRole };
 
 export type UsersResponse = { users: AuthUser[]; demoPassword: string };
+
+export type CriticalGapStudent = {
+  studentId: string;
+  fullName: string;
+  email: string;
+  career?: string;
+  cycle?: number;
+  roleId?: string | null;
+  jobId?: string | null;
+  skillId: string;
+  skillName: string;
+  severity: string;
+  status: string;
+  currentLevel?: number;
+  requiredLevel?: number;
+  source: string;
+};
+
+export type CriticalGapStudentsResponse = {
+  skillId: string;
+  skillName: string;
+  status: string;
+  source: string;
+  totalAffected: number;
+  students: CriticalGapStudent[];
+};
+
+export type CvEducacion = {
+  institucion?: string | null;
+  titulo?: string | null;
+  estado?: string | null;
+  ano?: string | null;
+};
+
+export type CvExperiencia = {
+  empresa?: string | null;
+  cargo?: string | null;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
+  ubicacion?: string | null;
+  responsabilidades?: string[];
+  tecnologias?: string[];
+};
+
+export type CvIdioma = { idioma?: string | null; nivel?: string | null };
+
+export type CvAnalysis = {
+  nombre?: string | null;
+  apellido?: string | null;
+  edad?: string | null;
+  correo?: string | null;
+  telefono?: string | null;
+  linkedin?: string | null;
+  github?: string | null;
+  direccion?: string | null;
+  profesion?: string | null;
+  resumen?: string | null;
+  educacion?: CvEducacion[];
+  experiencia?: CvExperiencia[];
+  certificaciones?: string[];
+  idiomas?: CvIdioma[];
+  skills_tecnicas?: string[];
+  skills_blandas?: string[];
+  fortalezas?: string[];
+  faltantes?: string[];
+  recomendaciones?: string[];
+  score?: number;
+  ats_score?: number;
+  error?: string;
+};
+
+export type CvAnalyzeResponse = { success: boolean; data: CvAnalysis };

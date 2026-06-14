@@ -8,6 +8,7 @@ import {
   getJobMatches,
 } from "../../opportunities/opportunities.api";
 import { getCurrentUserId } from "../../../shared/auth/authStore";
+import { applicationStatusEs } from "../../../shared/config/labels";
 import { useApi } from "../../../shared/api/useApi";
 import { Card } from "../../../shared/components/Card";
 import { EmptyState } from "../../../shared/components/EmptyState";
@@ -88,7 +89,7 @@ export function StudentOpportunitiesPage() {
                 <span>
                   {app.title} · <span className="muted">{app.company_name}</span>
                 </span>
-                <span className="chip">{app.status}</span>
+                <span className="chip">{applicationStatusEs(app.status)}</span>
               </div>
             ))}
           </div>

@@ -103,7 +103,7 @@ export function LoginPage() {
               </li>
             </ul>
           </div>
-          <p style={{ margin: 0, opacity: 0.82, fontWeight: 600 }}>Demo MVP · UTP</p>
+          <p style={{ margin: 0, opacity: 0.82, fontWeight: 600 }}>Plataforma de empleabilidad · UTP</p>
         </aside>
 
         <section className="auth-main">

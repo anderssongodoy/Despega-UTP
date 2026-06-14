@@ -653,6 +653,65 @@ textarea {
   box-shadow: var(--ring-focus);
 }
 
+/* Profile identity header */
+.profile-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: 18px;
+  color: #fff;
+  background: var(--gradient-brand);
+  box-shadow: var(--shadow-brand);
+  font-size: 1.55rem;
+  font-weight: 800;
+}
+
+.profile-hero h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.profile-hero .hero-actions {
+  margin-left: auto;
+}
+
+/* CV rendered as a document */
+.cv-doc {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.75rem;
+  padding: 1.5rem 1.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-soft);
+}
+
+.cv-doc .cv-name {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.cv-doc h4 {
+  margin: 0.9rem 0 0.3rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
 .muted {
   margin: 0;
   color: var(--color-muted);
@@ -1169,6 +1228,48 @@ textarea {
 .tabs-mock .active {
   color: #fff;
   border-color: var(--color-red);
+  background: var(--gradient-brand);
+}
+
+.onboarding-steps span.active {
+  color: #fff;
+  border-color: transparent;
+  background: var(--gradient-brand);
+}
+
+.onboarding-steps span.done {
+  color: #09685c;
+  border-color: rgba(34, 169, 149, 0.4);
+  background: rgba(34, 169, 149, 0.12);
+}
+
+/* Toggleable skill chips */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip-toggle {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.chip-toggle:hover {
+  border-color: rgba(213, 0, 50, 0.35);
+  color: var(--color-text);
+}
+
+.chip-toggle.selected {
+  color: #fff;
+  border-color: transparent;
   background: var(--gradient-brand);
 }
 

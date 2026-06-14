@@ -115,7 +115,7 @@ export function AppShell() {
       <main className="main-panel">
         <header className="topbar">
           <div>
-            <p className="eyebrow">MVP Hackathon UTP+</p>
+            <p className="eyebrow">Ruta de empleabilidad</p>
             <h1>{activeItem?.label ?? "Despega UTP"}</h1>
           </div>
           <span className="session-pill">{roleLabel[session.user.role]}</span>

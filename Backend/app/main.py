@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Backend canónico de la demo: app/api/ (psycopg v3, SQL directo vía app/core/db.py).
 # NOTA: app/routers/ (SQLAlchemy + mocks) quedó deprecado; el frontend consume /api.
-from app.api import advisor, auth, challenges, companies, jobs, students
-from app.api import advisor, auth, challenges, companies, jobs, students, cv
+from app.api import advisor, auth, challenges, companies, cv, jobs, students
 from app.core.config import get_settings
 
 
@@ -32,12 +31,12 @@ app.include_router(jobs.router, prefix="/api", tags=["Jobs"])
 app.include_router(challenges.router, prefix="/api", tags=["Challenges"])
 app.include_router(companies.router, prefix="/api", tags=["Companies"])
 app.include_router(advisor.router, prefix="/api", tags=["Advisor"])
+app.include_router(cv.router, prefix="/api", tags=["CV Analyzer"])
 
 
 @app.get("/", include_in_schema=False)
 def root() -> dict:
     return {"message": "Despega UTP API corriendo. Visita /docs para Swagger."}
-app.include_router(cv.router, prefix="/api", tags=["CV Analyzer"])
 
 
 @app.get("/health")
