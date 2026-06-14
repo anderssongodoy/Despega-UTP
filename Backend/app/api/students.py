@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.db import execute, fetch_all, fetch_one, get_connection
 from app.core.json_loader import get_roles
+from app.services.cv_bullet import generate_cv_bullet
 from app.services.matching import calculate_match, get_active_goal, get_recommended_resources
 
 
@@ -42,6 +43,17 @@ def _dim_status(score: int) -> str:
     if score >= 55:
         return "partial"
     return "critical"
+
+
+def _readiness_status(score: int) -> str:
+    """Convierte el readiness (0-100) a un estado de meta legible."""
+    if score >= 75:
+        return "ready"
+    if score >= 50:
+        return "viable"
+    if score >= 30:
+        return "aspirational"
+    return "not_recommended"
 
 
 def _safe_count(conn, table: str, student_id: str) -> int:
@@ -475,9 +487,12 @@ def complete_onboarding(
     critical_gaps = recalculate_student_critical_gaps(conn, student_id, role_id=goal_role_id)
 
     evidence_id = f"ev_{student_id}_{uuid4().hex[:8]}"
-    cv_bullet = (
-        f"{evidence.get('actions', 'Desarrollo una experiencia relevante')} "
-        f"para lograr: {evidence.get('result', 'un resultado concreto')}."
+    cv_bullet = generate_cv_bullet(
+        title=evidence.get("title", ""),
+        context=evidence.get("context", ""),
+        actions=evidence.get("actions", ""),
+        result=evidence.get("result", ""),
+        skills=evidence.get("skills", []),
     )
     execute(
         conn,
@@ -511,14 +526,17 @@ def complete_onboarding(
 
     execute(conn, "UPDATE users SET onboarding_completed = true, updated_at = now() WHERE id = %s", (student_id,))
 
+    # Readiness real: cobertura de los skills requeridos del rol meta (no hardcodeado).
+    readiness_score = _role_match_score(conn, student_id, goal_role_id)
+
     return {
         "studentId": student_id,
         "onboardingCompleted": True,
         "createdEvidence": {"id": evidence_id, "title": evidence.get("title", "Evidencia inicial"), "cvBullet": cv_bullet},
         "goal": {"roleId": goal_role_id, "roleName": goal_role_name},
         "initialDiagnosis": {
-            "readinessScore": 65,
-            "status": "viable",
+            "readinessScore": readiness_score,
+            "status": _readiness_status(readiness_score),
             # criticalGaps debe ser array de nombres legibles, no IDs tecnicos
             "criticalGaps": [g["skillName"] for g in critical_gaps],
         },
@@ -534,6 +552,9 @@ def get_student_dashboard(student_id: str, conn: Annotated[object, Depends(get_c
     role_id = goal["role_id"] if goal else "role_data_intern"
     gaps = recalculate_student_critical_gaps(conn, student_id, role_id=role_id)
     resources = get_recommended_resources(gaps)
+    # Readiness real del rol meta; si el rol aun no tiene requisitos, cae al match de la mejor vacante.
+    role_readiness = _role_match_score(conn, student_id, role_id)
+    readiness = role_readiness if role_readiness > 0 else (best_job["matchScore"] if best_job else 0)
 
     return {
         "student": {
@@ -546,8 +567,8 @@ def get_student_dashboard(student_id: str, conn: Annotated[object, Depends(get_c
         "goal": {
             "roleId": goal["role_id"] if goal else None,
             "roleName": goal["target_role_name"] if goal else None,
-            "readinessScore": best_job["matchScore"] if best_job else 0,
-            "status": best_job["status"] if best_job else "not_recommended",
+            "readinessScore": readiness,
+            "status": _readiness_status(readiness),
         },
         "nextBestAction": {
             "title": "Completa una evidencia o cierra tu brecha principal",
@@ -750,7 +771,13 @@ def get_evidences(student_id: str, conn: Annotated[object, Depends(get_connectio
 def create_evidence(student_id: str, payload: dict[str, Any], conn: Annotated[object, Depends(get_connection)]) -> dict:
     _student_or_404(conn, student_id)
     evidence_id = f"ev_{student_id}_{uuid4().hex[:8]}"
-    cv_bullet = f"{payload.get('actions', 'Desarrollo acciones relevantes')} para lograr {payload.get('result', 'un resultado concreto')}."
+    cv_bullet = generate_cv_bullet(
+        title=payload.get("title", ""),
+        context=payload.get("context", ""),
+        actions=payload.get("actions", ""),
+        result=payload.get("result", ""),
+        skills=payload.get("skills", []),
+    )
     execute(
         conn,
         """

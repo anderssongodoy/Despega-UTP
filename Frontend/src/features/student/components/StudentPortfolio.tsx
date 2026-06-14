@@ -1,8 +1,7 @@
-import { Award, FolderGit2 } from "lucide-react";
+import { Award, FolderGit2, GraduationCap, Sparkles } from "lucide-react";
 
 import { getCv, getPassport } from "../student.api";
 import { useApi } from "../../../shared/api/useApi";
-import { Card } from "../../../shared/components/Card";
 import { EmptyState } from "../../../shared/components/EmptyState";
 import { ErrorState } from "../../../shared/components/ErrorState";
 import { LoadingState } from "../../../shared/components/LoadingState";
@@ -16,59 +15,107 @@ export function StudentPortfolio({ studentId }: { studentId: string }) {
   if (passport.error || !passport.data) return <ErrorState />;
 
   const student = passport.data.student;
-  const skills = passport.data.skills ?? [];
+  const skills = [...(passport.data.skills ?? [])].sort((a, b) => b.level - a.level);
   const evidences = passport.data.evidences ?? [];
   const name = student?.name ?? "Estudiante UTP";
-  const meta = [student?.career, student?.cycle ? `${student.cycle} ciclo` : null].filter(Boolean).join(" · ");
+  const initial = name.charAt(0).toUpperCase();
+  const meta = [
+    student?.career,
+    student?.cycle ? `${student.cycle}° ciclo` : null,
+    student?.modality,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const summary = cv.data?.summary;
   const maxLevel = Math.max(5, ...skills.map((skill) => skill.level));
+  const topSkill = skills[0];
 
   return (
-    <div className="stack">
-      <Card className="featured">
-        <p className="eyebrow">Portafolio profesional · Despega UTP</p>
-        <h2 style={{ margin: "0.3rem 0 0", fontSize: "1.9rem", fontWeight: 800, letterSpacing: "-0.02em" }}>{name}</h2>
-        {meta ? <p style={{ margin: "0.2rem 0 0" }}>{meta}</p> : null}
-        {cv.data?.summary ? <p style={{ margin: "0.7rem 0 0", lineHeight: 1.6 }}>{cv.data.summary}</p> : null}
-      </Card>
+    <div className="portfolio">
+      {/* Portada */}
+      <header className="portfolio-hero">
+        <span className="portfolio-avatar">{initial}</span>
+        <div className="stack compact" style={{ gap: "0.3rem", minWidth: 0 }}>
+          <span className="portfolio-eyebrow">Portafolio profesional</span>
+          <h1 className="portfolio-name">{name}</h1>
+          {meta ? <p className="portfolio-meta">{meta}</p> : null}
+          {summary ? <p className="portfolio-summary">{summary}</p> : null}
+        </div>
+      </header>
 
+      {/* Métricas */}
+      <div className="portfolio-stats">
+        <div className="portfolio-stat">
+          <strong>{skills.length}</strong>
+          <span>habilidades</span>
+        </div>
+        <div className="portfolio-stat">
+          <strong>{evidences.length}</strong>
+          <span>evidencias</span>
+        </div>
+        {topSkill ? (
+          <div className="portfolio-stat">
+            <strong style={{ fontSize: "1.05rem" }}>{topSkill.name}</strong>
+            <span>habilidad destacada</span>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Habilidades */}
       {skills.length > 0 ? (
-        <Card>
-          <p className="eyebrow">
-            <Award size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />
-            Habilidades
-          </p>
-          <div className="stack compact" style={{ marginTop: "0.5rem" }}>
+        <section className="portfolio-section">
+          <h2 className="portfolio-section-title">
+            <Award size={18} /> Habilidades
+          </h2>
+          <div className="portfolio-skills">
             {skills.map((skill) => (
-              <div key={skill.id} className="dim-row">
-                <span>{skill.name}</span>
+              <div key={skill.id} className="portfolio-skill">
+                <div className="row-between">
+                  <span style={{ fontWeight: 600 }}>{skill.name}</span>
+                  <span className="muted" style={{ fontSize: "0.8rem" }}>
+                    {skill.level}/{maxLevel}
+                  </span>
+                </div>
                 <span className="bar" aria-hidden="true">
                   <span className="bar-ready" style={{ width: `${Math.min(100, (skill.level / maxLevel) * 100)}%` }} />
                 </span>
-                <span className="dim-score">{skill.level}</span>
               </div>
             ))}
           </div>
-        </Card>
+        </section>
       ) : null}
 
-      <Card>
-        <p className="eyebrow">
-          <FolderGit2 size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />
-          Logros y evidencias
-        </p>
+      {/* Evidencias */}
+      <section className="portfolio-section">
+        <h2 className="portfolio-section-title">
+          <FolderGit2 size={18} /> Logros y evidencias
+        </h2>
         {evidences.length === 0 ? (
-          <EmptyState title="Aun sin evidencias" description="Las evidencias del estudiante apareceran aqui." />
+          <EmptyState title="Aún sin evidencias" description="Las evidencias del estudiante aparecerán aquí." />
         ) : (
-          <div className="card-list" style={{ marginTop: "0.5rem" }}>
+          <div className="portfolio-evidences">
             {evidences.map((evidence) => (
-              <div key={evidence.id} className="evidence-item">
-                <strong>{evidence.title}</strong>
-                {evidence.cv_bullet ? <p className="cv-bullet">{evidence.cv_bullet}</p> : null}
-              </div>
+              <article key={evidence.id} className="portfolio-evidence">
+                <span className="portfolio-evidence-icon">
+                  <Sparkles size={15} />
+                </span>
+                <div className="stack compact" style={{ gap: "0.25rem", minWidth: 0 }}>
+                  <strong>{evidence.title}</strong>
+                  {evidence.cv_bullet ? (
+                    <p className="muted" style={{ margin: 0, lineHeight: 1.55 }}>
+                      {evidence.cv_bullet}
+                    </p>
+                  ) : null}
+                </div>
+              </article>
             ))}
           </div>
         )}
-      </Card>
+      </section>
+
+      <footer className="portfolio-foot">
+        <GraduationCap size={15} /> Generado con Despega UTP · Ruta Laboral
+      </footer>
     </div>
   );
 }

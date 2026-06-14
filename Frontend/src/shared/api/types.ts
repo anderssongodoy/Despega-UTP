@@ -30,6 +30,9 @@ export type JobMatch = {
   title: string;
   company_name?: string;
   companyName?: string;
+  modality?: string;
+  location?: string;
+  hours?: string;
   matchScore: number;
   status: MatchStatus;
   gaps?: SkillGap[];
@@ -133,6 +136,8 @@ export type InterviewKit = {
   risksToAddress: Array<{ skillId?: string; skillName: string; severity?: GapSeverity; message?: string }>;
 };
 
+export type ChallengeQuestion = { id: string; type: string; label: string };
+
 export type Challenge = {
   id: string;
   title: string;
@@ -141,6 +146,8 @@ export type Challenge = {
   skills?: string[];
   roleId?: string;
   brief?: string;
+  datasetPreview?: Array<Record<string, unknown>>;
+  questions?: ChallengeQuestion[];
 };
 
 export type ChallengesResponse = { challenges: Challenge[] };
@@ -232,9 +239,27 @@ export type ChallengeDetail = Challenge & {
 
 export type CompanyJobsResponse = { jobs: CompanyJob[] };
 
-export type Role = { id: string; name: string; family?: string; recommendedCycleMin?: number };
+export type RoleSkillReq = { skillId: string; requiredLevel?: number; importance?: string };
+
+export type Role = {
+  id: string;
+  name: string;
+  family?: string;
+  description?: string;
+  recommendedCycleMin?: number;
+  skills?: RoleSkillReq[];
+};
 
 export type RolesResponse = { roles: Role[] };
+
+export type OnboardingResult = {
+  studentId: string;
+  onboardingCompleted: boolean;
+  createdEvidence?: { id: string; title: string; cvBullet: string };
+  goal: { roleId: string; roleName: string };
+  initialDiagnosis: { readinessScore: number; status: string; criticalGaps: string[] };
+  redirectTo: string;
+};
 
 export type AuthUser = { id: string; name: string; email: string; role: UserRole };
 
@@ -311,3 +336,42 @@ export type CvAnalysis = {
 };
 
 export type CvAnalyzeResponse = { success: boolean; data: CvAnalysis };
+
+export type AudioDimension = { puntaje?: number; observacion?: string };
+
+export type PitchStructure = {
+  presentacion?: boolean;
+  propuesta_valor?: boolean;
+  problema_o_necesidad?: boolean;
+  solucion_o_aporte?: boolean;
+  beneficios?: boolean;
+  por_que_tu?: boolean;
+  llamado_a_accion?: boolean;
+};
+
+export type PitchAnalysis = {
+  resumen_general?: string;
+  estructura_pitch?: PitchStructure;
+  evaluacion_discurso?: {
+    claridad?: AudioDimension;
+    estructura?: AudioDimension;
+    vocabulario?: AudioDimension;
+    confianza?: AudioDimension;
+    fluidez?: AudioDimension;
+    puntaje_total?: number;
+  };
+  palabras_clave_tecnicas?: string[];
+  fortalezas_comunicacion?: string[];
+  areas_de_mejora?: string[];
+  recomendaciones?: string[];
+  apto_para_entrevista?: boolean;
+  nivel_comunicacion?: string;
+};
+
+export type PitchAnalyzeResponse = {
+  success: boolean;
+  data: {
+    transcripcion: { transcripcion_completa: string; segmentos: unknown[]; duracion_segundos: number };
+    analisis: PitchAnalysis;
+  };
+};

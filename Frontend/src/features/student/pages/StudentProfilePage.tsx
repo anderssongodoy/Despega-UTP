@@ -1,15 +1,15 @@
 import { useState } from "react";
 import clsx from "clsx";
-import { ExternalLink, FileText, Link2, Mic2, Plus, Sparkles } from "lucide-react";
+import { ExternalLink, Link2, Mic2, Plus, Sparkles } from "lucide-react";
 
-import { createEvidence, getCv, getEvidences, getInterviewKit, getStudentDashboard } from "../student.api";
+import { createEvidence, getEvidences, getInterviewKit, getStudentDashboard } from "../student.api";
 import { getCurrentUserId, useSession } from "../../../shared/auth/authStore";
 import { useApi } from "../../../shared/api/useApi";
 import { Card } from "../../../shared/components/Card";
 import { EmptyState } from "../../../shared/components/EmptyState";
 import { ErrorState } from "../../../shared/components/ErrorState";
 import { LoadingState } from "../../../shared/components/LoadingState";
-import { PitchPlayer } from "../../../shared/components/PitchPlayer";
+import { PitchCoach } from "../components/PitchCoach";
 import { CvAnalyzer } from "../components/CvAnalyzer";
 import { StudentPortfolio } from "../components/StudentPortfolio";
 
@@ -77,57 +77,20 @@ function ProfileHeader() {
 }
 
 function CvTab() {
-  const cv = useApi(() => getCv(), []);
-  const session = useSession();
-
   return (
     <div className="stack">
-      <Card>
-        <div className="row-between">
-          <p className="eyebrow">
-            <FileText size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />
-            Tu CV generado
-          </p>
-          <span className="chip">Auto desde tus evidencias</span>
-        </div>
-
-        {cv.loading ? (
-          <LoadingState />
-        ) : cv.error || !cv.data ? (
-          <ErrorState />
-        ) : cv.data.bullets.length === 0 ? (
-          <EmptyState
-            title="Tu CV aun esta vacio"
-            description="Agrega evidencias o sube tu CV en PDF abajo para construir tu CV orientado al rol."
-          />
-        ) : (
-          <div className="cv-doc">
-            <span className="cv-name">{session?.user.name ?? "Estudiante UTP"}</span>
-            <h4>Resumen profesional</h4>
-            <p className="muted" style={{ margin: 0, lineHeight: 1.6 }}>
-              {cv.data.summary}
-            </p>
-            <h4>Logros y experiencia</h4>
-            <ul className="stack compact" style={{ margin: 0, paddingLeft: "1.1rem" }}>
-              {cv.data.bullets.map((bullet, index) => (
-                <li key={index} style={{ lineHeight: 1.55 }}>
-                  {bullet}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </Card>
-
-      <Card>
+      <section className="page-heading">
         <p className="eyebrow">
           <Sparkles size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />
           Analizador de CV con IA
         </p>
-        <h3>Sube tu CV en PDF y recibe feedback</h3>
-        <p className="muted">Detecta tus fortalezas, vacios y un score ATS de tu CV.</p>
-        <CvAnalyzer />
-      </Card>
+        <h2>Sube tu CV y recibe un diagnóstico real</h2>
+        <p className="muted">
+          Detecta fortalezas, vacíos y tu score ATS, y revisa tu CV contra la metodología de empleabilidad de la Ruta
+          Laboral UTP.
+        </p>
+      </section>
+      <CvAnalyzer />
     </div>
   );
 }
@@ -219,9 +182,8 @@ function InterviewTab() {
         <ErrorState />
       ) : (
         <div className="stack">
-          <PitchPlayer pitch={interview.data.pitch} />
           <div className="stack compact">
-            <span className="chip">Preguntas frecuentes</span>
+            <span className="chip">Responde estas preguntas en tu pitch</span>
             <ul className="stack compact" style={{ margin: 0, paddingLeft: "1.1rem" }}>
               {interview.data.questions.map((question, index) => (
                 <li key={index} style={{ lineHeight: 1.5 }}>
@@ -230,6 +192,7 @@ function InterviewTab() {
               ))}
             </ul>
           </div>
+          <PitchCoach />
         </div>
       )}
     </Card>

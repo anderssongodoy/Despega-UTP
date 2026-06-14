@@ -8,17 +8,17 @@ import { appRoutes } from "../../../shared/config/routes";
 import { getCurrentUserId } from "../../../shared/auth/authStore";
 import { useApi } from "../../../shared/api/useApi";
 import { Card } from "../../../shared/components/Card";
+import { ALL_SKILLS, SKILL_GROUPS } from "../../../shared/config/skills";
+import type { OnboardingResult, Role } from "../../../shared/api/types";
 
+// Carreras con malla/skills cargadas en la BD (data dura, no texto libre).
 const CAREERS = [
   "Ingenieria de Sistemas e Informatica",
-  "Ingenieria de Software",
-  "Ingenieria Industrial",
-  "Administracion",
-  "Marketing",
-  "Comunicaciones",
+  "Administracion de Empresas",
+  "Administracion de Negocios Internacionales",
   "Psicologia",
-  "Contabilidad",
-  "Diseno Grafico",
+  "Derecho",
+  "Ingenieria Industrial",
 ];
 
 const CAMPUSES = ["Lima Centro", "Lima Norte", "Lima Sur", "Arequipa", "A distancia"];
@@ -39,30 +39,13 @@ const CV_STATUS = [
 ];
 const EVIDENCE_TYPES = [
   { value: "academic_project", label: "Proyecto academico" },
-  { value: "work_experience", label: "Experiencia laboral" },
-  { value: "volunteer", label: "Voluntariado" },
   { value: "course_project", label: "Proyecto de curso" },
-  { value: "extracurricular", label: "Actividad extracurricular" },
+  { value: "work_experience", label: "Experiencia laboral / practica" },
+  { value: "volunteer", label: "Voluntariado" },
+  { value: "extracurricular", label: "Competencia / actividad" },
 ];
 
-const SKILLS = [
-  { id: "sk_excel", name: "Excel" },
-  { id: "sk_powerbi", name: "Power BI" },
-  { id: "sk_sql", name: "SQL" },
-  { id: "sk_python", name: "Python" },
-  { id: "sk_git", name: "Git" },
-  { id: "sk_english", name: "Ingles" },
-  { id: "sk_communication", name: "Comunicacion" },
-  { id: "sk_writing", name: "Redaccion" },
-  { id: "sk_digital_marketing", name: "Marketing Digital" },
-  { id: "sk_problem_solving", name: "Resolucion de problemas" },
-  { id: "sk_critical_thinking", name: "Pensamiento critico" },
-  { id: "sk_organization", name: "Organizacion" },
-  { id: "sk_process_management", name: "Gestion de procesos" },
-  { id: "sk_interview", name: "Entrevista" },
-];
-
-const STEPS = ["Perfil", "Meta", "Autoevaluacion", "Evidencia"];
+const STEPS = ["Perfil", "Meta", "Autoevaluacion", "Evidencia"] as const;
 
 function ChipMulti({
   options,
@@ -90,6 +73,12 @@ function ChipMulti({
   );
 }
 
+function roleCoverage(role: Role, knownSet: Set<string>): number {
+  const reqs = role.skills ?? [];
+  if (reqs.length === 0) return 0;
+  return reqs.filter((req) => knownSet.has(req.skillId)).length / reqs.length;
+}
+
 export function OnboardingPage() {
   const navigate = useNavigate();
   const roles = useApi(() => getRoles(), []);
@@ -98,6 +87,7 @@ export function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [result, setResult] = useState<OnboardingResult | null>(null);
 
   // Paso 1 - Perfil academico
   const [career, setCareer] = useState("");
@@ -111,9 +101,9 @@ export function OnboardingPage() {
   const [workMode, setWorkMode] = useState("Hibrido");
   const [timeframe, setTimeframe] = useState("Aun explorando");
 
-  // Paso 3 - Autoevaluacion
-  const [knownSkills, setKnownSkills] = useState<string[]>([]);
-  const [perceivedGaps, setPerceivedGaps] = useState<string[]>([]);
+  // Paso 3 - Autoevaluacion (estado por skill: have = la manejo, gap = a reforzar)
+  const [skillState, setSkillState] = useState<Record<string, "have" | "gap">>({});
+  const [skillCat, setSkillCat] = useState(0);
   const [cvStatus, setCvStatus] = useState("missing");
   const [englishLevel, setEnglishLevel] = useState("Basico");
   const [linkedinUrl, setLinkedinUrl] = useState("");
@@ -130,6 +120,28 @@ export function OnboardingPage() {
   function toggle(list: string[], setList: (value: string[]) => void, id: string) {
     setList(list.includes(id) ? list.filter((item) => item !== id) : [...list, id]);
   }
+
+  const knownSkills = Object.keys(skillState).filter((id) => skillState[id] === "have");
+  const perceivedGaps = Object.keys(skillState).filter((id) => skillState[id] === "gap");
+
+  function cycleSkill(id: string) {
+    setSkillState((prev) => {
+      const current = prev[id];
+      const next = current === undefined ? "have" : current === "have" ? "gap" : undefined;
+      const copy = { ...prev };
+      if (next === undefined) delete copy[id];
+      else copy[id] = next;
+      return copy;
+    });
+  }
+
+  // Sugerencia de meta: compara las skills del alumno vs los requisitos de cada rol (/roles).
+  const knownSet = new Set(knownSkills);
+  const currentCov = roleCoverage(roleOptions.find((role) => role.id === roleId) ?? ({ id: "", name: "" } as Role), knownSet);
+  const best = roleOptions
+    .map((role) => ({ role, cov: roleCoverage(role, knownSet) }))
+    .sort((a, b) => b.cov - a.cov)[0];
+  const suggestion = best && best.cov > 0 && best.role.id !== roleId && best.cov >= currentCov + 0.2 ? best : null;
 
   const stepValid: Record<number, boolean> = {
     1: career.trim().length > 0 && cycle >= 1 && cycle <= 12 && !!campus && !!modality,
@@ -170,13 +182,97 @@ export function OnboardingPage() {
       };
     }
     try {
-      await completeOnboarding(getCurrentUserId(), payload);
-      navigate(appRoutes.studentHome);
+      const response = await completeOnboarding(getCurrentUserId(), payload);
+      setResult(response);
     } catch {
       setError("No se pudo completar el onboarding. Revisa que el backend este activo.");
     } finally {
       setSaving(false);
     }
+  }
+
+  // Pantalla de resultado (cierra el circulo). Encuadrada en positivo, sin desmotivar.
+  if (result) {
+    const addedEvidence = hasEvidence && evTitle.trim().length > 0;
+    const gaps = result.initialDiagnosis?.criticalGaps ?? [];
+    return (
+      <main className="auth-page">
+        <Card className="auth-card wide">
+          <div className="brand-lockup">
+            <span className="utp-logo">UTP</span>
+            <strong>Despega UTP</strong>
+          </div>
+          <span className="chip" style={{ background: "rgba(34,169,149,0.15)", color: "#09685c" }}>
+            <Check size={12} style={{ marginRight: 4 }} /> Perfil creado
+          </span>
+          <h1>¡Tu perfil esta listo!</h1>
+          <p className="muted">
+            Tu meta: <strong>{result.goal.roleName}</strong>. Desde aqui empezamos a prepararte para ese rol.
+          </p>
+
+          {result.initialDiagnosis.readinessScore > 0 ? (
+            <div className="stack compact">
+              <div className="score-block">
+                <span className="score-number">
+                  {result.initialDiagnosis.readinessScore}
+                  <small>/100</small>
+                </span>
+                <span className="muted">Tu preparacion inicial · la subiremos juntos</span>
+              </div>
+              <div className="bar" aria-hidden="true">
+                <span
+                  className={
+                    result.initialDiagnosis.readinessScore >= 55
+                      ? "bar-ready"
+                      : result.initialDiagnosis.readinessScore >= 30
+                        ? "bar-partial"
+                        : "bar-critical"
+                  }
+                  style={{ width: `${Math.min(100, result.initialDiagnosis.readinessScore)}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {gaps.length > 0 ? (
+            <div className="stack compact">
+              <span className="chip">Lo que reforzaremos juntos</span>
+              <div className="chip-group">
+                {gaps.map((gap, index) => (
+                  <span key={index} className="chip">
+                    {gap}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="muted" style={{ margin: 0 }}>
+              Tu perfil ya cubre lo principal para tu meta. ¡Excelente arranque!
+            </p>
+          )}
+
+          {addedEvidence && result.createdEvidence ? (
+            <div className="evidence-item">
+              <span className="chip">Tu primer punto para el CV</span>
+              <p className="cv-bullet">{result.createdEvidence.cvBullet}</p>
+            </div>
+          ) : (
+            <p className="muted" style={{ margin: 0 }}>
+              Cuando quieras, agrega tu primera evidencia en tu perfil para potenciar tu CV.
+            </p>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => navigate(result.redirectTo || appRoutes.studentHome)}
+            style={{ marginTop: "0.5rem" }}
+          >
+            Ir a mi inicio <ArrowRight size={18} />
+          </button>
+        </Card>
+      </main>
+    );
   }
 
   return (
@@ -186,17 +282,22 @@ export function OnboardingPage() {
           <span className="utp-logo">UTP</span>
           <strong>Despega UTP</strong>
         </div>
-        <p className="eyebrow">Primera vez</p>
-        <h1>Cuentanos sobre ti</h1>
-        <p className="muted">Toma 1 minuto. Si recien empiezas, deja vacio lo que no aplique.</p>
+        <p className="eyebrow">Bienvenido</p>
+        <h1>Construyamos tu perfil</h1>
+        <p className="muted">
+          Paso {step} de {STEPS.length} · {STEPS[step - 1]}
+        </p>
 
-        <div className="onboarding-steps">
+        <div className="stepper">
           {STEPS.map((label, index) => {
             const number = index + 1;
+            const done = number < step;
+            const active = number === step;
             return (
-              <span key={label} className={clsx(number === step && "active", number < step && "done")}>
-                {number < step ? <Check size={14} style={{ verticalAlign: "-2px" }} /> : `${number}.`} {label}
-              </span>
+              <div key={label} className={clsx("step-item", active && "active", done && "done")}>
+                <span className="step-dot">{done ? <Check size={14} /> : number}</span>
+                {label}
+              </div>
             );
           })}
         </div>
@@ -207,19 +308,16 @@ export function OnboardingPage() {
             <label className="eyebrow" htmlFor="career">
               Carrera
             </label>
-            <input
-              id="career"
-              className="field"
-              list="careers"
-              placeholder="Escribe o elige tu carrera"
-              value={career}
-              onChange={(event) => setCareer(event.target.value)}
-            />
-            <datalist id="careers">
+            <select id="career" className="field" value={career} onChange={(event) => setCareer(event.target.value)}>
+              <option value="" disabled>
+                Selecciona tu carrera…
+              </option>
               {CAREERS.map((item) => (
-                <option key={item} value={item} />
+                <option key={item} value={item}>
+                  {item}
+                </option>
               ))}
-            </datalist>
+            </select>
 
             <label className="eyebrow" htmlFor="cycle">
               Ciclo (1 a 12)
@@ -246,7 +344,7 @@ export function OnboardingPage() {
             </select>
 
             <label className="eyebrow" htmlFor="modality">
-              Modalidad
+              Modalidad de estudio
             </label>
             <select id="modality" className="field" value={modality} onChange={(event) => setModality(event.target.value)}>
               {MODALITIES.map((item) => (
@@ -318,17 +416,64 @@ export function OnboardingPage() {
         {/* PASO 3 - Autoevaluacion */}
         {step === 3 ? (
           <div className="stack compact">
-            <label className="eyebrow">Habilidades que ya manejas (opcional)</label>
-            <ChipMulti options={SKILLS} selected={knownSkills} onToggle={(id) => toggle(knownSkills, setKnownSkills, id)} />
+            <label className="eyebrow">Tus habilidades</label>
+            <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+              Toca una habilidad: 1 vez = <strong style={{ color: "#0f8a78" }}>la manejas</strong>, 2 veces ={" "}
+              <strong style={{ color: "#a06400" }}>la quieres reforzar</strong>, 3 veces la quitas.
+            </p>
 
-            <label className="eyebrow" style={{ marginTop: "0.6rem" }}>
-              Habilidades que quieres reforzar (opcional)
-            </label>
-            <ChipMulti
-              options={SKILLS}
-              selected={perceivedGaps}
-              onToggle={(id) => toggle(perceivedGaps, setPerceivedGaps, id)}
-            />
+            <div className="tabs" role="tablist" aria-label="Categorias de habilidades">
+              {SKILL_GROUPS.map((group, index) => (
+                <button
+                  key={group.label}
+                  type="button"
+                  role="tab"
+                  aria-selected={skillCat === index}
+                  className={clsx("tab", skillCat === index && "active")}
+                  onClick={() => setSkillCat(index)}
+                >
+                  {group.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="chip-group">
+              {SKILL_GROUPS[skillCat].skills.map((skill) => {
+                const state = skillState[skill.id];
+                return (
+                  <button
+                    key={skill.id}
+                    type="button"
+                    className={clsx("chip-toggle", state === "have" && "chip-have", state === "gap" && "chip-gap")}
+                    onClick={() => cycleSkill(skill.id)}
+                  >
+                    {state === "have" ? "✓ " : state === "gap" ? "↗ " : ""}
+                    {skill.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            {knownSkills.length > 0 || perceivedGaps.length > 0 ? (
+              <p className="muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+                Manejas {knownSkills.length} · A reforzar {perceivedGaps.length}
+              </p>
+            ) : null}
+
+            {suggestion ? (
+              <div
+                className="state-box"
+                style={{ textAlign: "left", borderStyle: "solid", borderColor: "rgba(213,0,50,0.3)", background: "rgba(213,0,50,0.05)" }}
+              >
+                <strong>Por tus habilidades encajas mejor en: {suggestion.role.name}</strong>
+                <p className="muted" style={{ margin: "0.2rem 0 0.6rem" }}>
+                  Cubres {Math.round(suggestion.cov * 100)}% de ese rol. Tu meta actual cubre {Math.round(currentCov * 100)}%. Tu decides.
+                </p>
+                <button type="button" className="btn btn-secondary" onClick={() => setRoleId(suggestion.role.id)}>
+                  Cambiar mi meta a {suggestion.role.name}
+                </button>
+              </div>
+            ) : null}
 
             <label className="eyebrow" htmlFor="cv" style={{ marginTop: "0.6rem" }}>
               Estado de tu CV
@@ -368,17 +513,22 @@ export function OnboardingPage() {
         {/* PASO 4 - Evidencia (opcional) */}
         {step === 4 ? (
           <div className="stack compact">
-            <p className="muted" style={{ margin: 0 }}>
-              Una evidencia es un logro, proyecto o experiencia que demuestre lo que sabes hacer.
-              <strong> Si recien empiezas y aun no tienes una, puedes omitir este paso.</strong>
-            </p>
+            <div className="state-box" style={{ textAlign: "left" }}>
+              <strong>¿Que es una evidencia?</strong>
+              <p className="muted" style={{ margin: "0.2rem 0 0" }}>
+                Cualquier logro, proyecto o experiencia donde demostraste una habilidad — <strong>no tiene que ser un
+                trabajo</strong>. Ej: un proyecto de curso, una app personal, un voluntariado o una competencia. Si recien
+                empiezas, puedes omitirlo.
+              </p>
+            </div>
+
             <div className="chip-group">
               <button
                 type="button"
                 className={clsx("chip-toggle", !hasEvidence && "selected")}
                 onClick={() => setHasEvidence(false)}
               >
-                No tengo todavia
+                Omitir por ahora
               </button>
               <button
                 type="button"
@@ -392,7 +542,7 @@ export function OnboardingPage() {
             {hasEvidence ? (
               <div className="stack compact" style={{ marginTop: "0.4rem" }}>
                 <label className="eyebrow" htmlFor="ev-type">
-                  Tipo
+                  Tipo de evidencia
                 </label>
                 <select id="ev-type" className="field" value={evType} onChange={(event) => setEvType(event.target.value)}>
                   {EVIDENCE_TYPES.map((item) => (
@@ -403,30 +553,30 @@ export function OnboardingPage() {
                 </select>
                 <input
                   className="field"
-                  placeholder="Titulo (ej. Dashboard de ventas)"
+                  placeholder="Titulo (ej. Dashboard de ventas en Power BI)"
                   value={evTitle}
                   onChange={(event) => setEvTitle(event.target.value)}
                 />
                 <input
                   className="field"
-                  placeholder="Contexto (donde / cuando)"
+                  placeholder="Contexto: donde y cuando lo hiciste"
                   value={evContext}
                   onChange={(event) => setEvContext(event.target.value)}
                 />
                 <input
                   className="field"
-                  placeholder="Que hiciste"
+                  placeholder="Acciones: que hiciste tu"
                   value={evActions}
                   onChange={(event) => setEvActions(event.target.value)}
                 />
                 <input
                   className="field"
-                  placeholder="Que lograste"
+                  placeholder="Resultado: que lograste (con numeros si puedes)"
                   value={evResult}
                   onChange={(event) => setEvResult(event.target.value)}
                 />
                 <label className="eyebrow">Habilidades que demuestra</label>
-                <ChipMulti options={SKILLS} selected={evSkills} onToggle={(id) => toggle(evSkills, setEvSkills, id)} />
+                <ChipMulti options={ALL_SKILLS} selected={evSkills} onToggle={(id) => toggle(evSkills, setEvSkills, id)} />
               </div>
             ) : null}
           </div>
@@ -459,7 +609,7 @@ export function OnboardingPage() {
             </button>
           ) : (
             <button type="button" className="btn btn-primary" onClick={finish} disabled={saving || !stepValid[4]}>
-              {saving ? "Guardando…" : "Completar onboarding"} <Check size={18} />
+              {saving ? "Guardando…" : "Completar perfil"} <Check size={18} />
             </button>
           )}
         </div>

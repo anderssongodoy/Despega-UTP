@@ -7,6 +7,7 @@ import type {
   EvidencesResponse,
   GapsResponse,
   InterviewKit,
+  OnboardingResult,
   Passport,
   RolesResponse,
   StudentDashboard,
@@ -21,7 +22,7 @@ export function getRoles() {
 }
 
 export function completeOnboarding(studentId: string, payload: unknown) {
-  return apiClient(`/students/${studentId}/onboarding`, { method: "POST", body: payload });
+  return apiClient<OnboardingResult>(`/students/${studentId}/onboarding`, { method: "POST", body: payload });
 }
 
 export function getDiagnosis(studentId = getCurrentUserId()) {
