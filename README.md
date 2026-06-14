@@ -122,22 +122,34 @@ App disponible en `http://localhost:4200`.
 
 ## Usuarios de prueba
 
-Contraseña universal para todos: **`demo123`**
+> 🔑 Contraseña universal para **TODOS** los usuarios: **`demo123`**
 
-**Con datos (onboarding completo):**
+# 🚀 PARA PROBAR EL ONBOARDING (estudiante nuevo)
+
+**Entra con cualquiera de estos 5 — van directo al diagnóstico inicial / flujo de cero:**
+
+```
+prueba1@utp.edu.pe
+prueba2@utp.edu.pe
+prueba3@utp.edu.pe
+prueba4@utp.edu.pe
+prueba5@utp.edu.pe
+
+Contraseña:  demo123
+```
+
+---
+
+### Usuarios CON datos (onboarding ya completo)
 
 | Rol | Email |
 |-----|-------|
-| Estudiante (perfil completo) | `camila.torres@utp.edu.pe` |
-| Estudiante | `andrea.salazar@utp.edu.pe`, `mateo.rivas@utp.edu.pe`, `lucia.herrera@utp.edu.pe`, `luis.mendoza@utp.edu.pe`, `diego.ramos@utp.edu.pe`, `renzo.castillo@utp.edu.pe`, `valeria.paredes@utp.edu.pe` |
-| Empresa | `ana@retailandino.pe`, `paola@talentolab.pe` |
-| Asesor | `asesor@utp.edu.pe` |
+| 🎓 Estudiante (perfil completo) | `camila.torres@utp.edu.pe` |
+| 🎓 Estudiante | `andrea.salazar@utp.edu.pe`, `mateo.rivas@utp.edu.pe`, `lucia.herrera@utp.edu.pe`, `luis.mendoza@utp.edu.pe`, `diego.ramos@utp.edu.pe`, `renzo.castillo@utp.edu.pe`, `valeria.paredes@utp.edu.pe` |
+| 🏢 Empresa | `ana@retailandino.pe`, `paola@talentolab.pe` |
+| 🧑‍🏫 Asesor | `asesor@utp.edu.pe` |
 
-**Sin onboarding (para probar el flujo desde cero):**
-
-`prueba1@utp.edu.pe` · `prueba2@utp.edu.pe` · `prueba3@utp.edu.pe` · `prueba4@utp.edu.pe` · `prueba5@utp.edu.pe`
-
-> Estos 5 usuarios entran directo al **onboarding**: ideal para que el jurado pruebe el diagnóstico inicial como un estudiante nuevo.
+> Todos con contraseña **`demo123`**.
 
 ---
 
