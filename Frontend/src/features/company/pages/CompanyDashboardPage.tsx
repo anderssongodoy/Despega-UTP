@@ -72,7 +72,7 @@ export function CompanyDashboardPage() {
         <MetricCard label="Vacantes" value={data.activeJobs} helper="activas" />
         <MetricCard label="Candidatos" value={data.recommendedCandidates} helper="recomendados" />
         <MetricCard label="Match promedio" value={`${data.averageMatch}%`} helper="pre-filtrado" />
-        <MetricCard label="Horas ahorradas" value={data.estimatedHoursSaved} helper="estimadas" />
+        <MetricCard label="Alta afinidad" value={data.strongMatches} helper="candidatos ≥70%" />
       </div>
 
       <div className="content-grid">

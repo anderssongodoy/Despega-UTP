@@ -22,7 +22,17 @@ def get_company_dashboard(company_id: str, conn: Annotated[object, Depends(get_c
         all_candidates.extend(job_candidates)
         preview.extend(job_candidates[:2])
 
-    avg_match = round(sum(c["matchScore"] for c in preview) / len(preview)) if preview else 0
+    # Mejor match por estudiante (un estudiante puede calzar con varias vacantes).
+    best_by_student: dict[str, int] = {}
+    for candidate in all_candidates:
+        sid = candidate["student_id"]
+        score = candidate["matchScore"]
+        if sid not in best_by_student or score > best_by_student[sid]:
+            best_by_student[sid] = score
+
+    scores = list(best_by_student.values())
+    avg_match = round(sum(scores) / len(scores)) if scores else 0
+    strong_matches = sum(1 for score in scores if score >= 70)
 
     # Brechas mas frecuentes calculadas a partir de las brechas reales de los candidatos.
     gap_counts: dict[str, int] = {}
@@ -36,9 +46,9 @@ def get_company_dashboard(company_id: str, conn: Annotated[object, Depends(get_c
     return {
         "company": company,
         "activeJobs": len(jobs),
-        "recommendedCandidates": len(preview),
+        "recommendedCandidates": len(best_by_student),
         "averageMatch": avg_match,
-        "estimatedHoursSaved": len(preview) * 2,
+        "strongMatches": strong_matches,
         "topGaps": top_gaps,
         "jobs": jobs,
         "candidatePreview": preview[:6],

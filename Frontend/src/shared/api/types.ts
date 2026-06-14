@@ -181,7 +181,7 @@ export type CompanyDashboard = {
   activeJobs: number;
   recommendedCandidates: number;
   averageMatch: number;
-  estimatedHoursSaved: number;
+  strongMatches: number;
   topGaps: string[];
   jobs: CompanyJob[];
   candidatePreview: Candidate[];
