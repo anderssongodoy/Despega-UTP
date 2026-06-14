@@ -209,6 +209,7 @@ export type AdvisorImpact = {
   byCareer: Array<{ career: string; students: number }>;
   topRoles: Array<{ role: string; students: number }>;
   seedMetrics?: unknown;
+  criticalGaps: Array<{ skillId: string; skillName: string; students: number }>;
   topGaps: string[];
 };
 

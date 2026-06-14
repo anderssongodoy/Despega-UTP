@@ -38,10 +38,25 @@ def get_advisor_impact(conn: Annotated[object, Depends(get_connection)]) -> dict
         ORDER BY students DESC, role
         """,
     )
+    # Brechas criticas reales: skills que mas estudiantes tienen abiertas.
+    critical_gaps = fetch_all(
+        conn,
+        """
+        SELECT scg.skill_id AS "skillId", sk.name AS "skillName",
+               count(DISTINCT scg.student_id) AS students
+        FROM student_critical_gaps scg
+        JOIN skills sk ON sk.id = scg.skill_id
+        WHERE scg.status = 'open'
+        GROUP BY scg.skill_id, sk.name
+        ORDER BY students DESC, sk.name
+        LIMIT 8
+        """,
+    )
     return {
         "totals": totals,
         "byCareer": by_career,
         "topRoles": top_roles,
         "seedMetrics": seed,
-        "topGaps": ["SQL", "Ingles", "Power BI", "Comunicacion tecnica"],
+        "criticalGaps": critical_gaps,
+        "topGaps": [gap["skillName"] for gap in critical_gaps[:5]],
     }

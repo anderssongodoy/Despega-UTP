@@ -13,18 +13,6 @@ import { LoadingState } from "../../../shared/components/LoadingState";
 import { MetricCard } from "../../../shared/components/MetricCard";
 import { StatusBadge } from "../../../shared/components/StatusBadge";
 
-// Skills críticas más relevantes (IDs reales del catálogo del backend).
-const CRITICAL_SKILLS = [
-  { id: "sk_sql", name: "SQL" },
-  { id: "sk_english", name: "Ingles" },
-  { id: "sk_powerbi", name: "Power BI" },
-  { id: "sk_python", name: "Python" },
-  { id: "sk_excel", name: "Excel" },
-  { id: "sk_communication", name: "Comunicacion" },
-  { id: "sk_problem_solving", name: "Resolucion de problemas" },
-  { id: "sk_business_intelligence", name: "Inteligencia de Negocios" },
-];
-
 function groupByStudent(rows: CriticalGapStudent[]): CriticalGapStudent[][] {
   const groups = new Map<string, CriticalGapStudent[]>();
   for (const row of rows) {
@@ -158,31 +146,46 @@ export function AdvisorImpactPage() {
                 </Card>
               </div>
 
-              {/* Brechas más comunes — clic para ver estudiantes afectados */}
+              {/* Brechas críticas reales — clic para ver estudiantes afectados */}
               <Card>
                 <p className="eyebrow">
                   <Target size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />
-                  Brechas criticas — clic para ver estudiantes
+                  Brechas críticas — clic para ver estudiantes
                 </p>
-                <div className="chip-group" style={{ marginTop: "0.5rem" }}>
-                  {CRITICAL_SKILLS.map((skill) => (
-                    <button
-                      key={skill.id}
-                      type="button"
-                      className={clsx("chip-toggle", selectedSkill?.id === skill.id && "selected")}
-                      onClick={() =>
-                        setSelectedSkill((current) => (current?.id === skill.id ? null : { id: skill.id, name: skill.name }))
-                      }
-                    >
-                      {skill.name}
-                    </button>
-                  ))}
-                </div>
-
-                {selectedSkill ? <AffectedStudents skillId={selectedSkill.id} /> : (
+                <p className="muted" style={{ margin: "0.2rem 0 0", fontSize: "0.85rem" }}>
+                  Habilidades con más estudiantes en brecha abierta. Prioriza talleres y refuerzos aquí.
+                </p>
+                {data.criticalGaps.length === 0 ? (
                   <p className="muted" style={{ marginTop: "0.75rem" }}>
-                    Selecciona una brecha para ver que estudiantes la tienen abierta.
+                    No hay brechas críticas abiertas ahora mismo.
                   </p>
+                ) : (
+                  <>
+                    <div className="chip-group" style={{ marginTop: "0.7rem" }}>
+                      {data.criticalGaps.map((gap) => (
+                        <button
+                          key={gap.skillId}
+                          type="button"
+                          className={clsx("chip-toggle", selectedSkill?.id === gap.skillId && "selected")}
+                          onClick={() =>
+                            setSelectedSkill((current) =>
+                              current?.id === gap.skillId ? null : { id: gap.skillId, name: gap.skillName },
+                            )
+                          }
+                        >
+                          {gap.skillName} · {gap.students}
+                        </button>
+                      ))}
+                    </div>
+
+                    {selectedSkill ? (
+                      <AffectedStudents skillId={selectedSkill.id} />
+                    ) : (
+                      <p className="muted" style={{ marginTop: "0.75rem" }}>
+                        Selecciona una brecha para ver qué estudiantes la tienen abierta.
+                      </p>
+                    )}
+                  </>
                 )}
               </Card>
             </>
