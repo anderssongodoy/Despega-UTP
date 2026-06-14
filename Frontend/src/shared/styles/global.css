@@ -426,6 +426,7 @@ textarea {
   height: 52px;
   border-radius: 50%;
   background: #fff;
+  color: var(--color-text);
   font-weight: 800;
   font-size: 0.95rem;
   letter-spacing: -0.02em;
@@ -571,6 +572,11 @@ textarea {
   color: #fff;
   background: var(--gradient-brand);
   box-shadow: 0 8px 20px -8px rgba(213, 0, 50, 0.6);
+}
+
+.tab.active .chip {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
 }
 
 /* Score block */

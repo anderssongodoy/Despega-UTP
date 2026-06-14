@@ -159,8 +159,8 @@ function CandidatesPanel({ jobId }: { jobId: string }) {
   const activeStudent = selected ?? list[0].student_id;
 
   return (
-    <div className="content-grid">
-      <div className="card-list">
+    <div className="content-grid" style={{ alignItems: "start" }}>
+      <div className="card-list" style={{ alignContent: "start" }}>
         {list.map((candidate) => (
           <Card
             key={candidate.student_id}
