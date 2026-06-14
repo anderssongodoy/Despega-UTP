@@ -4,6 +4,7 @@ import { AppShell } from "./shared/layouts/AppShell";
 import { LandingPage } from "./features/public/LandingPage";
 import { LoginPage } from "./features/auth/LoginPage";
 import { OnboardingPage } from "./features/student/pages/OnboardingPage";
+import { PortfolioPage } from "./features/student/pages/PortfolioPage";
 import { StudentHomePage } from "./features/student/pages/StudentHomePage";
 import { StudentRoutePage } from "./features/student/pages/StudentRoutePage";
 import { StudentProfilePage } from "./features/student/pages/StudentProfilePage";
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
   { path: appRoutes.landing, element: <LandingPage /> },
   { path: appRoutes.login, element: <LoginPage /> },
   { path: appRoutes.onboarding, element: <OnboardingPage /> },
+  { path: appRoutes.portfolio, element: <PortfolioPage /> },
   {
     element: <AppShell />,
     children: [

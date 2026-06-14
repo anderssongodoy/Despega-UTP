@@ -1,0 +1,23 @@
+# ---------------------------------------------------------------------------
+# AI assistant / skill tooling (installed locally — not product code)
+# Patterns are unanchored, so they also match Frontend/.agents, etc.
+# ---------------------------------------------------------------------------
+.agents/
+.claude/
+.gemini/
+.kiro/
+skills-lock.json
+
+# ---------------------------------------------------------------------------
+# Secrets (safety net — never commit real env files)
+# ---------------------------------------------------------------------------
+.env
+**/.env
+!.env.example
+**/.env.example
+
+# ---------------------------------------------------------------------------
+# OS / editor noise
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db

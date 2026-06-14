@@ -10,4 +10,5 @@ export const appRoutes = {
   companyDashboard: "/company/dashboard",
   companyTalent: "/company/talent",
   advisorImpact: "/advisor/impact",
+  portfolio: "/portfolio/:studentId",
 } as const;

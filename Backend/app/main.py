@@ -4,12 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import advisor, auth, challenges, companies, jobs, students, cv, audio
 from app.core.config import get_settings
 
+
 settings = get_settings()
 
 app = FastAPI(
     title="Despega UTP API",
     version="0.1.0",
-    description="Backend FastAPI MVP para Hackathon UTP+.",
+    description="Backend FastAPI MVP para Hackathon UTP+ (psycopg v3).",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.add_middleware(
@@ -28,6 +31,11 @@ app.include_router(companies.router, prefix="/api", tags=["Companies"])
 app.include_router(advisor.router, prefix="/api", tags=["Advisor"])
 app.include_router(cv.router, prefix="/api", tags=["CV Analyzer"])
 app.include_router(audio.router, prefix="/api", tags=["Audio Analyzer"])
+
+
+@app.get("/", include_in_schema=False)
+def root() -> dict:
+    return {"message": "Despega UTP API corriendo. Visita /docs para Swagger."}
 
 
 @app.get("/health")
